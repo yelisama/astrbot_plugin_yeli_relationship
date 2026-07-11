@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>夜璃关系本 · 变动手记</title>
+  <style>
+    /* ========================================
+       动画 & 过渡 基础令牌
+    ======================================== */
+    :root {
+      --duration-fast: 0.15s;
+      --duration-normal: 0.25s;
+      --duration-slow: 0.4s;
+      --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+      --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 20px;
+    }
+
+    /* 玻璃青蓝（默认） */
+    :root, [data-theme="glass"] {
+      --body-bg: linear-gradient(145deg, #e8f0f2 0%, #dee9ed 25%, #e3edf5 50%, #e0ebe8 75%, #e6f0ef 100%);
+      --spot1: #b8dbd3; --spot2: #c4dce8;
+      --glass-bg: rgba(255,255,255,0.62);
+      --glass-border: rgba(255,255,255,0.55);
+      --glass-shadow: 0 8px 32px rgba(15,23,42,0.06), 0 2px 8px rgba(15,23,42,0.04);
+      --glass-edge: rgba(255,255,255,0.7);
+      --text: #1a2332; --text-soft: #4a5568; --muted: #8899aa;
+      --accent: #5b9a8b; --accent-soft: #c8e6df; --heading: #2d4a43;
+      --danger: #e07b6e; --warn: #d4a853;
+      --divider: rgba(139,160,175,0.25);
+    }
+    [data-theme="sky"] {
+      --body-bg: linear-gradient(145deg, #e3edf8 0%, #dce6f2 25%, #e8f0fa 50%, #e0eaf5 75%, #ecf3fb 100%);
+      --spot1: #b0cce8; --spot2: #c8ddf0;
+      --glass-bg: rgba(255,255,255,0.6); --glass-border: rgba(255,255,255,0.55);
+      --glass-shadow: 0 8px 32px rgba(30,50,80,0.06), 0 2px 8px rgba(30,50,80,0.04);
+      --glass-edge: rgba(255,255,255,0.7);
+      --text: #1a2638; --text-soft: #3d5068; --muted: #7a8ea0;
+      --accent: #5080b8; --accent-soft: #c8ddf0; --heading: #2a3d58;
+      --danger: #d07060; --warn: #c89840;
+      --divider: rgba(120,150,180,0.25);
+    }
+    [data-theme="paper"] {
+      --body-bg: linear-gradient(145deg, #f5f0e5 0%, #f0ead8 25%, #f6f2e8 50%, #f2ede0 75%, #f8f4ec 100%);
+      --spot1: #e8d8b8; --spot2: #efe0c8;
+      --glass-bg: rgba(255,252,245,0.7); --glass-border: rgba(220,200,170,0.45);
+      --glass-shadow: 0 8px 32px rgba(60,40,20,0.06), 0 2px 8px rgba(60,40,20,0.04);
+      --glass-edge: rgba(255,252,245,0.8);
+      --text: #3d3028; --text-soft: #5c4a38; --muted: #988878;
+      --accent: #9b7b58; --accent-soft: #e8d8c0; --heading: #4a3828;
+      --danger: #c06850; --warn: #b88830;
+      --divider: rgba(180,160,140,0.3);
+    }
+    [data-theme="green"] {
+      --body-bg: linear-gradient(145deg, #e8f0e5 0%, #dce8d8 25%, #e5f0e2 50%, #e0ece0 75%, #eaf2e8 100%);
+      --spot1: #b8d8b8; --spot2: #c8e0c0;
+      --glass-bg: rgba(255,255,250,0.62); --glass-border: rgba(200,220,200,0.5);
+      --glass-shadow: 0 8px 32px rgba(30,50,30,0.05), 0 2px 8px rgba(30,50,30,0.03);
+      --glass-edge: rgba(255,255,250,0.7);
+      --text: #1e3028; --text-soft: #3d5240; --muted: #7a9078;
+      --accent: #5a8a60; --accent-soft: #c8e0c8; --heading: #2a4030;
+      --danger: #c86858; --warn: #b08830;
+      --divider: rgba(140,170,140,0.25);
+    }
+    [data-theme-mode="dark"] {
+      --body-bg: #1a1f24 !important;
+      --spot1: #2a3a3a; --spot2: #2a3540;
+      --glass-bg: rgba(30,36,44,0.75); --glass-border: rgba(255,255,255,0.08);
+      --glass-shadow: 0 8px 32px rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.15);
+      --glass-edge: rgba(255,255,255,0.06);
+      --text: #dce4ec; --text-soft: #a0b0c0; --muted: #6a7888;
+      --accent: #7fa3c8; --accent-soft: #25384c; --heading: #c8d8e8;
+      --danger: #e88878; --warn: #d0a850;
+      --divider: rgba(255,255,255,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--body-bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 30px 18px 100px;
+      position: relative;
+      overflow-x: hidden;
+      transition: background 0.4s, color 0.4s;
+    }
+
+    body::before, body::after {
+      content: ''; position: fixed; border-radius: 50%; filter: blur(80px);
+      opacity: 0.45; z-index: 0; pointer-events: none;
+      transition: background 0.6s;
+    }
+    body::before { width: 420px; height: 420px; background: radial-gradient(circle, var(--spot1) 0%, transparent 70%); top: -120px; right: -100px; }
+    body::after  { width: 340px; height: 340px; background: radial-gradient(circle, var(--spot2) 0%, transparent 70%); bottom: -80px; left: -80px; }
+
+    /* 第三个光斑 */
+    .spot {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: 0.35;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .spot-3 {
+      width: 260px; height: 260px;
+      background: radial-gradient(circle, var(--spot1) 0%, transparent 70%);
+      top: 40%; left: 60%;
+    }
+
+    /* ---- 日记本主体 ---- */
+    .diary {
+      position: relative;
+      z-index: 1;
+      width: min(880px, 100%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--glass-shadow),
+                  inset 0 1px 0 var(--glass-edge);
+      padding: 40px 40px;
+      animation: fadeInUp 0.5s var(--ease-out) both;
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    /* PC 端两栏布局 */
+    @media (min-width: 750px) {
+      .diary-content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 24px;
+      }
+      .diary-content-grid .day-group { break-inside: avoid; }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .diary-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .scope-switch {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .scope-switch select {
+      border: none;
+      background: transparent;
+      color: var(--text);
+      outline: none;
+      font-weight: 600;
+      max-width: 180px;
+    }
+    .top-action {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 18px rgba(15,23,42,0.06);
+    }
+
+    /* ---- 封面 ---- */
+    .cover {
+      text-align: center;
+      padding-bottom: 28px;
+      margin-bottom: 24px;
+      border-bottom: 1px dashed var(--divider);
+    }
+    .cover .icon-book {
+      font-size: 36px;
+      display: block;
+      margin-bottom: 6px;
+      opacity: 0.8;
+    }
+    .cover h1 {
+      font-size: 24px;
+      font-weight: 650;
+      letter-spacing: 2px;
+      color: var(--heading);
+    }
+    .cover .subtitle {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 1px;
+    }
+    .cover .summary {
+      margin-top: 16px;
+      display: inline-flex;
+      gap: 18px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+    .cover .summary span {
+      background: rgba(91, 154, 139, 0.08);
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+
+    /* ---- 日历日期条 ---- */
+    .date-strip-wrap {
+      margin: 0 -6px 20px;
+      overflow: hidden;
+    }
+    .date-strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 4px 6px;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .date-strip::-webkit-scrollbar { display: none; }
+
+    .date-chip {
+      flex-shrink: 0;
+      padding: 8px 15px;
+      border: 1px solid rgba(139, 160, 175, 0.2);
+      border-radius: 50px;
+      background: var(--input-bg);
+      color: var(--text-soft);
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--duration-fast) var(--ease-out);
+      user-select: none;
+    }
+    .date-chip:hover {
+      background: var(--glass-bg);
+      border-color: rgba(139, 160, 175, 0.35);
+    }
+    .date-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(91, 154, 139, 0.25);
+    }
+    .date-chip.all-chip {
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .date-chip .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 5px;
+      vertical-align: middle;
+      opacity: 0.7;
+    }
+    .date-chip.active .dot {
+      background: var(--input-bg);
+      opacity: 1;
+    }
+
+    /* ---- 下滑加载提示 ---- */
+    .load-more-hint {
+      text-align: center;
+      padding: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .load-more-hint .spinner {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(139, 160, 175, 0.25);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- 日期分组 ---- */
+    .day-group {
+      margin-bottom: 28px;
+    }
+    .day-group:last-child { margin-bottom: 0; }
+
+    .day-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .day-header .marker {
+      color: var(--accent);
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .day-header .date {
+      font-size: 15px;
+      font-weight: 650;
+      color: var(--heading);
+    }
+    .day-header .weekday {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .day-header .count {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(139, 160, 175, 0.1);
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+    .day-divider {
+      height: 1px;
+      background: linear-gradient(to right, rgba(139,160,175,0.25), transparent);
+      margin-bottom: 16px;
+    }
+
+    /* ---- 单条记录 ---- */
+    .entry {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      transition: background var(--duration-fast) var(--ease-out);
+      position: relative;
+    }
+    .entry:hover {
+      background: var(--glass-bg);
+    }
+
+    .entry .icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .entry .icon.add    { background: rgba(91, 154, 139, 0.12); color: #3d8b7a; }
+    .entry .icon.edit   { background: rgba(129, 156, 196, 0.12); color: #5a7d9e; }
+    .entry .icon.delete { background: rgba(224, 123, 110, 0.10); color: #c96a5e; }
+    .entry .icon.lock   { background: rgba(212, 168, 83, 0.12);  color: #b89040; }
+
+    .entry .body {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.6;
+    }
+    .entry .body .text {
+      font-size: 14px;
+      color: var(--text);
+    }
+    .entry .body .text .name {
+      font-weight: 600;
+      color: var(--heading);
+    }
+    .entry .body .text .field {
+      color: var(--text-soft);
+      font-size: 13px;
+    }
+    .entry .body .text .old-val {
+      color: var(--muted);
+      text-decoration: line-through;
+      margin-right: 4px;
+    }
+    .entry .body .text .new-val {
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .entry .body .time {
+      margin-top: 3px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .entry .body .scope-badge {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--muted);
+      background: rgba(139, 160, 175, 0.1);
+      padding: 1px 8px;
+      border-radius: 999px;
+    }
+
+    /* 无记录空状态 */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon-empty {
+      font-size: 48px;
+      display: block;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ---- 悬浮管理按钮 ---- */
+    .float-btn {
+      position: fixed;
+      right: 24px;
+      bottom: 28px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 22px;
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08),
+                  inset 0 1px 0 var(--glass-edge);
+      color: #2d4a43;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--duration-normal) var(--ease-out);
+      text-decoration: none;
+      user-select: none;
+    }
+    .float-btn:hover {
+      background: var(--glass-bg);
+      box-shadow: 0 6px 28px rgba(15, 23, 42, 0.12),
+                  inset 0 1px 0 var(--glass-edge);
+      transform: translateY(-2px);
+    }
+    .float-btn:active {
+      transform: translateY(0) scale(0.97);
+      transition-duration: 0.05s;
+    }
+    .float-btn .btn-icon {
+      font-size: 18px;
+    }
+
+    /* ---- 响应式 ---- */
+    @media (max-width: 640px) {
+      body { padding: 16px 10px 90px; }
+      .diary { padding: 24px 18px; border-radius: var(--radius-md); }
+      .cover h1 { font-size: 20px; }
+      .entry { padding: 10px 10px; }
+      .float-btn { right: 14px; bottom: 18px; padding: 12px 18px; font-size: 13px; }
+    }
+
+    /* 无障碍：偏好减少动画 */
+    @media (prefers-reduced-motion: reduce) {
+      .diary, .entry, .float-btn, .top-action { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 第三个光斑 -->
+  <div class="spot spot-3"></div>
+
+  <!-- 日记本主体 -->
+  <article class="diary">
+
+    <div class="diary-toolbar">
+      <div class="toolbar-left">
+        <label class="scope-switch" title="切换变动手记显示范围">
+          <span>🔎 显示范围</span>
+          <select id="scopeFilterSelect">
+            <option value="all:all">全部群组与私聊</option>
+            <option value="global:global">全局</option>
+          </select>
+        </label>
+      </div>
+      <div class="toolbar-right">
+        <button id="themeBtn" class="top-action" title="切换配色">🎨 配色</button>
+        <button id="darkBtn" class="top-action" title="夜间模式">🌙 夜间</button>
+        <a class="top-action" id="manageLink" href="index.html" title="进入管理面板">⚙ 管理资料</a>
+      </div>
+    </div>
+
+    <!-- 封面 -->
+    <header class="cover">
+      <span class="icon-book">📖</span>
+      <h1>夜璃关系本</h1>
+      <p class="subtitle">变 动 手 记</p>
+      <div class="summary">
+        <span id="scopeSubtitle">📝 记录每一次关系的变迁</span>
+      </div>
+    </header>
+
+    <!-- 日历日期条 -->
+    <div class="date-strip-wrap">
+      <nav class="date-strip" id="dateStrip"></nav>
+    </div>
+
+    <!-- 记录由 JS 动态渲染 -->
+    <div class="diary-content-grid" id="diaryContent"></div>
+
+  </article>
+
+  <!-- 主题菜单 -->
+  <div class="theme-menu" id="themeMenu" style="position:fixed;z-index:90;background:var(--glass-bg);backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:14px;box-shadow:0 12px 40px rgba(15,23,42,0.15);padding:6px;min-width:150px;display:none;">
+    <button class="theme-opt" data-theme="glass" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;border-radius:10px;background:transparent;color:var(--text);font-size:13px;cursor:pointer;"><span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#b8dbd3,#5b9a8b);border:2px solid rgba(255,255,255,0.6);"></span>玻璃青蓝</button>
+    <button class="theme-opt" data-theme="sky" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;border-radius:10px;background:transparent;color:var(--text);font-size:13px;cursor:pointer;"><span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#b0cce8,#5080b8);border:2px solid rgba(255,255,255,0.6);"></span>浅蓝</button>
+    <button class="theme-opt" data-theme="paper" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;border-radius:10px;background:transparent;color:var(--text);font-size:13px;cursor:pointer;"><span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#e8d8b8,#9b7b58);border:2px solid rgba(255,255,255,0.6);"></span>纸张黄</button>
+    <button class="theme-opt" data-theme="green" style="display:flex;align-items:center;gap:8px;width:100%;padding:10px 14px;border:none;border-radius:10px;background:transparent;color:var(--text);font-size:13px;cursor:pointer;"><span style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#b8d8b8,#5a8a60);border:2px solid rgba(255,255,255,0.6);"></span>护眼绿</button>
+  </div>
+
+  <script type="module">
+    /* ========================================
+       日记本渲染逻辑（目前用 mock 数据演示）
+       后续接入后端 API 后替换 mock 即可
+    ======================================== */
+
+    const bridge = window.AstrBotPluginPage;
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+      }[ch]));
+    }
+
+    /* === 主题管理 === */
+    try { (function(){
+    const TK = "yeli_theme", DK = "yeli_dark";
+    function persistThemeConfig(patch) { try { if(bridge&&bridge.apiPost) bridge.apiPost("relationship/config", patch).catch(()=>{}); } catch(_){} }
+    function applyTheme(t, persist=false) { t=t||"glass"; document.documentElement.setAttribute("data-theme", t); try{localStorage.setItem(TK,t)}catch(_){} if(persist) persistThemeConfig({webui_theme:t}); }
+    function setDarkMode(mode, persist=false) { mode = mode === "dark" ? "dark" : "light"; if(mode==="dark") document.documentElement.setAttribute("data-theme-mode","dark"); else document.documentElement.removeAttribute("data-theme-mode"); try{localStorage.setItem(DK,mode)}catch(_){} if(persist) persistThemeConfig({webui_dark_mode:mode}); updateDarkBtn(); }
+    window.__applyYeliTheme = applyTheme;
+    window.__setYeliDarkMode = setDarkMode;
+    function toggleDark() {
+      const is = document.documentElement.getAttribute("data-theme-mode") === "dark";
+      setDarkMode(is ? "light" : "dark", true);
+    }
+    function updateDarkBtn() {
+      const is = document.documentElement.getAttribute("data-theme-mode") === "dark";
+      const b = document.getElementById("darkBtn"); if (b) b.textContent = is ? "☀️" : "🌙";
+    }
+    function showTM(btn) {
+      const m = document.getElementById("themeMenu"); if(!m) return;
+      const r = btn.getBoundingClientRect();
+      m.style.top = (r.bottom+8)+"px"; m.style.left = (r.left-60)+"px"; m.style.display = m.style.display==="block"?"none":"block";
+    }
+    document.addEventListener("click",(e)=>{ const m=document.getElementById("themeMenu"); if(m&&!m.contains(e.target)&&e.target!==document.getElementById("themeBtn")) m.style.display="none"; });
+    var tb = document.getElementById("themeBtn"), dk = document.getElementById("darkBtn");
+    if(tb) tb.addEventListener("click",(e)=>{ e.stopPropagation(); showTM(tb); });
+    if(dk) dk.addEventListener("click",toggleDark);
+    document.querySelectorAll(".theme-opt").forEach(o=>{ o.addEventListener("click",()=>applyTheme(o.dataset.theme, true)); });
+    var st, sd;
+    try{ st = localStorage.getItem(TK)||"glass"; }catch(_){ st="glass"; }
+    try{ sd = localStorage.getItem(DK)||"light"; }catch(_){ sd="light"; }
+    applyTheme(st);
+    setDarkMode(sd, false);
+    })(); } catch(e) { /* 主题非关键功能 */ }
+
+    // ---- Mock 数据（模拟后端返回的操作日志）----
+    // 字段说明：
+    //   action: add / edit / delete / lock / unlock
+    //   target_name: 被操作的用户昵称
+    //   target_qq:   被操作的用户 QQ
+    //   field:       操作字段（edit/lock时）
+    //   old_value:   旧值（edit时）
+    //   new_value:   新值（add/edit时）
+    //   scope_label: 作用域标签
+    //   timestamp:   ISO 时间字符串
+    const MOCK_LOGS = [
+      { id: 12, action: "edit",   target_name: "梦梦大人", target_qq: "2199429616", field: "称呼",       old_value: "梦梦大人", new_value: "梦梦",    scope_label: "全局", timestamp: "2026-07-05T14:32:00" },
+      { id: 11, action: "lock",   target_name: "汐小姐",   target_qq: "1447653277", field: "昵称",       old_value: "",      new_value: "已锁定", scope_label: "全局", timestamp: "2026-07-05T11:20:00" },
+      { id: 10, action: "add",    target_name: "冰糖",     target_qq: "3608555861", field: "",           old_value: "",      new_value: "",       scope_label: "全局", timestamp: "2026-07-05T10:15:00" },
+      { id: 9,  action: "delete", target_name: "测试用户",  target_qq: "1000000000", field: "",           old_value: "",      new_value: "",       scope_label: "全局", timestamp: "2026-07-04T23:40:00" },
+      { id: 8,  action: "edit",   target_name: "悲伤郁郁喵", target_qq: "2665122945", field: "关系",      old_value: "",      new_value: "朋友",   scope_label: "全局", timestamp: "2026-07-04T18:05:00" },
+      { id: 7,  action: "add",    target_name: "杂鱼时雨",  target_qq: "2308005039", field: "",           old_value: "",      new_value: "",       scope_label: "全局", timestamp: "2026-07-04T15:30:00" },
+      { id: 6,  action: "edit",   target_name: "藤原妹红",  target_qq: "1704192421", field: "重要度",     old_value: "50",    new_value: "80",      scope_label: "全局", timestamp: "2026-07-03T21:12:00" },
+      { id: 5,  action: "unlock", target_name: "洛兮咕咕叫", target_qq: "1728296452", field: "备注",      old_value: "已锁定",new_value: "已解锁",  scope_label: "全局", timestamp: "2026-07-03T16:45:00" },
+      { id: 4,  action: "add",    target_name: "幽荧",     target_qq: "2879361795", field: "",           old_value: "",      new_value: "",       scope_label: "群 123456", timestamp: "2026-07-02T12:00:00" },
+      { id: 3,  action: "edit",   target_name: "冰糖",     target_qq: "3608555861", field: "称呼",       old_value: "",      new_value: "冰糖",   scope_label: "全局", timestamp: "2026-07-02T09:30:00" },
+      { id: 2,  action: "add",    target_name: "璃.",      target_qq: "2199429616", field: "",           old_value: "",      new_value: "",       scope_label: "全局", timestamp: "2026-07-01T20:00:00" },
+      { id: 1,  action: "delete", target_name: "旧测试账号", target_qq: "9999999999", field: "",           old_value: "",      new_value: "",       scope_label: "全局", timestamp: "2026-07-01T08:00:00" },
+    ];
+
+    // ---- Action → 图标 + 文字 ----
+    const ACTION_META = {
+      add:    { icon: "✦", cls: "add",    verb: "新增了" },
+      edit:   { icon: "✧", cls: "edit",   verb: "修改了" },
+      delete: { icon: "✗", cls: "delete", verb: "删除了" },
+      lock:   { icon: "◆", cls: "lock",   verb: "锁定了" },
+      unlock: { icon: "◇", cls: "lock",   verb: "解锁了" },
+    };
+
+    // ---- 北京时间解析/格式化 ----
+    function beijingParts(iso) {
+      const raw = String(iso || "");
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+      if (m) {
+        return { y: +m[1], mo: +m[2], d: +m[3], h: +m[4], mi: +m[5] };
+      }
+      const date = new Date(raw || Date.now());
+      const bj = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+      return {
+        y: bj.getUTCFullYear(), mo: bj.getUTCMonth() + 1, d: bj.getUTCDate(),
+        h: bj.getUTCHours(), mi: bj.getUTCMinutes(),
+      };
+    }
+    function bjDateKey(iso) {
+      const p = beijingParts(iso);
+      return `${p.y}-${pad2(p.mo)}-${pad2(p.d)}`;
+    }
+    function todayBeijingParts() {
+      return beijingParts(new Date().toISOString());
+    }
+    function dayDiffFromTodayBJ(y, mo, d) {
+      const now = todayBeijingParts();
+      const today = Date.UTC(now.y, now.mo - 1, now.d);
+      const that = Date.UTC(y, mo - 1, d);
+      return Math.round((today - that) / 86400000);
+    }
+
+    function formatTime(iso) {
+      const p = beijingParts(iso);
+      const time = `${pad2(p.h)}:${pad2(p.mi)}`;
+      const diff = dayDiffFromTodayBJ(p.y, p.mo, p.d);
+      if (diff === 0) return `今天 ${time}`;
+      if (diff === 1) return `昨天 ${time}`;
+      return `${p.mo}月${p.d}日 ${time}`;
+    }
+
+    // ---- 格式化日期组标题 ----
+    function formatDateHeader(dateStr) {
+      const p = beijingParts(`${dateStr}T00:00:00+08:00`);
+      const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+      const diff = dayDiffFromTodayBJ(p.y, p.mo, p.d);
+
+      let label;
+      if (diff === 0) label = "今天";
+      else if (diff === 1) label = "昨天";
+      else label = `${p.mo}月${p.d}日`;
+
+      const weekIndex = new Date(Date.UTC(p.y, p.mo - 1, p.d)).getUTCDay();
+      return {
+        label,
+        weekday: `星期${weekdays[weekIndex]}`,
+        dateKey: `${p.y}-${pad2(p.mo)}-${pad2(p.d)}`,
+      };
+    }
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    function fieldLabel(field) {
+      const map = {
+        nickname: "昵称",
+        aliases: "别名",
+        title_manual: "管理称呼",
+        title_auto: "AI 称呼",
+        note_manual: "管理备注",
+        note_auto: "AI 备注",
+        relation_type: "关系",
+        importance: "重要度",
+      };
+      return map[field] || field || "资料";
+    }
+
+    // ---- 渲染单条记录的文字描述 ----
+    function renderEntryText(log) {
+      const meta = ACTION_META[log.action] || ACTION_META.edit;
+      const name = escapeHtml(log.target_name || log.target_qq);
+      const label = escapeHtml(fieldLabel(log.field));
+      const oldValue = escapeHtml(log.old_value || "");
+      const newValue = escapeHtml(log.new_value || "");
+
+      switch (log.action) {
+        case "add":
+          return `<span class="text">${meta.verb} <span class="name">「${name}」</span></span>`;
+
+        case "delete":
+          return `<span class="text">${meta.verb} <span class="name">「${name}」</span></span>`;
+
+        case "edit":
+          if (log.old_value && log.new_value) {
+            return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>：<span class="old-val">${oldValue}</span>→ <span class="new-val">${newValue}</span></span>`;
+          } else if (log.new_value) {
+            return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>，设为 <span class="new-val">${newValue}</span></span>`;
+          }
+          return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span></span>`;
+
+        case "lock":
+        case "unlock":
+          return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>字段</span>`;
+
+        default:
+          return `<span class="text"><span class="name">「${name}」</span></span>`;
+      }
+    }
+
+    // ---- 分页 ----
+    const PAGE_SIZE = 15; // 每次加载 15 条
+
+    const state = {
+      allLogs: [],        // 全部日志
+      selectedDate: null, // null=全部, "2026-07-05"=只看某天
+      visibleCount: PAGE_SIZE,
+    };
+
+    // ---- 构建日历日期条 ----
+    function buildDateStrip() {
+      const strip = document.getElementById("dateStrip");
+      // 收集所有有记录的日期
+      const dateSet = new Set();
+      for (const log of state.allLogs) {
+        dateSet.add(bjDateKey(log.timestamp));
+      }
+      const dates = Array.from(dateSet).sort().reverse(); // 最新在前
+
+      let html = `<span class="date-chip all-chip${state.selectedDate === null ? " active" : ""}" data-date="">全部</span>`;
+      for (const dateKey of dates) {
+        const header = formatDateHeader(dateKey + "T00:00:00");
+        const active = state.selectedDate === dateKey ? " active" : "";
+        html += `<span class="date-chip${active}" data-date="${dateKey}"><span class="dot"></span>${header.label} ${header.weekday}</span>`;
+      }
+      strip.innerHTML = html;
+
+      // 绑定点击
+      strip.querySelectorAll(".date-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const date = chip.dataset.date; // "" = 全部
+          state.selectedDate = date || null;
+          state.visibleCount = PAGE_SIZE;
+          renderDiary();
+          buildDateStrip();
+          // 自动滚到选中的 chip
+          chip.scrollIntoView({ inline: "center", behavior: "smooth" });
+        });
+      });
+
+      // 自动滚到当前选中的 chip
+      const activeChip = strip.querySelector(".date-chip.active");
+      if (activeChip) {
+        requestAnimationFrame(() => activeChip.scrollIntoView({ inline: "center", behavior: "smooth" }));
+      }
+    }
+
+    // ---- 获取过滤后的日志 ----
+    function getFilteredLogs() {
+      if (!state.selectedDate) return state.allLogs;
+      return state.allLogs.filter((log) => {
+        return bjDateKey(log.timestamp) === state.selectedDate;
+      });
+    }
+
+    // ---- 主渲染 ----
+    function renderDiary() {
+      const container = document.getElementById("diaryContent");
+      const logs = getFilteredLogs();
+      const visible = logs.slice(0, state.visibleCount);
+      const hasMore = state.visibleCount < logs.length;
+
+      if (!logs || logs.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <span class="icon-empty">📖</span>
+            <p>${state.selectedDate ? "这一天还没有变动记录" : "还没有任何变动记录"}</p>
+            <p style="margin-top:4px;font-size:12px;">${state.selectedDate ? "看看其他日期，或者去管理面板操作一下吧" : "去管理面板操作一下，这里就会有手记啦"}</p>
+          </div>`;
+        return;
+      }
+
+      // 按日期分组
+      const groups = {};
+      for (const log of visible) {
+        const key = bjDateKey(log.timestamp);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(log);
+      }
+
+      // 渲染
+      let html = "";
+      for (const [dateKey, dayLogs] of Object.entries(groups)) {
+        const header = formatDateHeader(dateKey + "T00:00:00");
+        html += `
+          <section class="day-group">
+            <div class="day-header">
+              <span class="marker">◆</span>
+              <span class="date">${header.label}</span>
+              <span class="weekday">${header.weekday}</span>
+              <span class="count">${dayLogs.length} 条记录</span>
+            </div>
+            <div class="day-divider"></div>`;
+
+        for (const log of dayLogs) {
+          const meta = ACTION_META[log.action] || ACTION_META.edit;
+          html += `
+            <div class="entry">
+              <div class="icon ${meta.cls}">${meta.icon}</div>
+              <div class="body">
+                ${renderEntryText(log)}
+                <div class="time">${formatTime(log.timestamp)}</div>
+                ${log.scope_label && log.scope_label !== "全局" ? `<span class="scope-badge">${escapeHtml(log.scope_label)}</span>` : ""}
+              </div>
+            </div>`;
+        }
+
+        html += `</section>`;
+      }
+
+      // 下滑加载提示
+      if (hasMore) {
+        html += `<div class="load-more-hint" id="loadMoreHint"><span class="spinner"></span>向下滚动加载更多…</div>`;
+      } else if (state.visibleCount > PAGE_SIZE && logs.length > PAGE_SIZE) {
+        html += `<div class="load-more-hint">已显示全部 ${logs.length} 条记录</div>`;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- 下滑自动加载更多 ----
+    let scrollLoading = false;
+    window.addEventListener("scroll", () => {
+      if (scrollLoading) return;
+      const hint = document.getElementById("loadMoreHint");
+      if (!hint) return;
+
+      const rect = hint.getBoundingClientRect();
+      // 当加载提示进入视野底部 200px 时触发
+      if (rect.top < window.innerHeight + 200) {
+        scrollLoading = true;
+        state.visibleCount += PAGE_SIZE;
+        renderDiary();
+        setTimeout(() => { scrollLoading = false; }, 300);
+      }
+    }, { passive: true });
+
+    function getScopeFromUrl() {
+      const params = new URLSearchParams(location.search || "");
+      let scopeType = params.get("scope_type") || "all";
+      let scopeId = params.get("scope_id") || "all";
+      if (!["all", "global", "group", "private"].includes(scopeType)) scopeType = "all";
+      if (scopeType === "all") scopeId = "all";
+      if (scopeType === "global") scopeId = "global";
+      return { scope_type: scopeType, scope_id: scopeId };
+    }
+    function scopeLabel(scope) {
+      if (scope.scope_type === "all") return "全部群组与私聊";
+      if (scope.scope_type === "global") return "全局";
+      if (scope.scope_type === "group") return `群聊 ${scope.scope_id}`;
+      if (scope.scope_type === "private") return `私聊 ${scope.scope_id}`;
+      return `${scope.scope_type} ${scope.scope_id}`;
+    }
+    let currentScope = getScopeFromUrl();
+    const manageLink = document.getElementById("manageLink");
+    function manageTargetUrl() {
+      const params = new URLSearchParams(location.search || "");
+      params.set("manage", "1");
+      params.set("scope_type", currentScope.scope_type === "all" ? "global" : currentScope.scope_type);
+      params.set("scope_id", currentScope.scope_type === "all" ? "global" : currentScope.scope_id);
+      return `index.html?${params.toString()}`;
+    }
+    function refreshManageLink() {
+      if (manageLink) manageLink.href = manageTargetUrl();
+    }
+    if (manageLink) {
+      refreshManageLink();
+      manageLink.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = manageTargetUrl();
+      };
+    }
+    const scopeSub = document.getElementById("scopeSubtitle");
+    function refreshScopeText() {
+      if (scopeSub) scopeSub.textContent = `📝 ${scopeLabel(currentScope)} · 记录每一次关系的变迁`;
+    }
+    refreshScopeText();
+
+    function normalizeLog(row) {
+      return {
+        id: row.id,
+        action: row.action || "edit",
+        target_name: row.target_name || row.target_qq || "未知用户",
+        target_qq: row.target_qq || "",
+        field: row.field || "",
+        old_value: row.old_value || "",
+        new_value: row.new_value || "",
+        scope_label: row.scope_label || "全局",
+        timestamp: row.timestamp || row.created_at || new Date().toISOString(),
+      };
+    }
+
+    async function loadLogs() {
+      state.visibleCount = PAGE_SIZE;
+      state.selectedDate = null;
+      refreshScopeText();
+      try {
+        if (!bridge || !bridge.apiPost) throw new Error("WebUI bridge 不可用");
+        const resp = await bridge.apiPost("relationship/logs", {
+          scope_type: currentScope.scope_type,
+          scope_id: currentScope.scope_id,
+          limit: currentScope.scope_type === "all" ? 300 : 180,
+        });
+        if (!resp || !resp.success) throw new Error(resp?.error || "读取日志失败");
+        state.allLogs = (resp.rows || []).map(normalizeLog);
+      } catch (e) {
+        // 独立打开 HTML 或旧后端未重载时，使用演示数据，避免页面空白。
+        console.warn("关系本日志接口不可用，使用演示数据：", e);
+        state.allLogs = MOCK_LOGS;
+      }
+      buildDateStrip();
+      renderDiary();
+    }
+
+    function applyScopeOptions(config) {
+      const select = document.getElementById("scopeFilterSelect");
+      if (!select) return;
+      const currentValue = `${currentScope.scope_type}:${currentScope.scope_id}`;
+      const options = [
+        { value: "all:all", label: "全部群组与私聊" },
+        { value: "global:global", label: "全局" },
+      ];
+      for (const id of (config.group_whitelist || [])) options.push({ value: `group:${id}`, label: `群聊 ${id}` });
+      for (const id of (config.user_whitelist || [])) options.push({ value: `private:${id}`, label: `私聊 ${id}` });
+      select.innerHTML = options.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+      select.value = options.some(o => o.value === currentValue) ? currentValue : "all:all";
+      select.onchange = () => {
+        const [scopeType, scopeId] = select.value.split(":");
+        currentScope = { scope_type: scopeType, scope_id: scopeId };
+        const params = new URLSearchParams(location.search || "");
+        params.set("scope_type", scopeType);
+        params.set("scope_id", scopeId);
+        history.replaceState(null, "", `diary.html?${params.toString()}`);
+        refreshManageLink();
+        loadLogs();
+      };
+    }
+
+    // 启动
+    try {
+      if (bridge) await bridge.ready();
+      if (bridge && bridge.apiGet) {
+        const cfg = await bridge.apiGet("relationship/config");
+        if (cfg && cfg.success && cfg.config) {
+          window.__applyYeliTheme?.(cfg.config.webui_theme || undefined, false);
+          window.__setYeliDarkMode?.(cfg.config.webui_dark_mode || undefined, false);
+          applyScopeOptions(cfg.config);
+        } else {
+          applyScopeOptions({});
+        }
+      } else {
+        applyScopeOptions({});
+      }
+    } catch (_) { applyScopeOptions({}); }
+    loadLogs();
+  </script>
+
+</body>
+</html>

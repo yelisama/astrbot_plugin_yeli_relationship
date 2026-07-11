@@ -1,0 +1,10 @@
+name: astrbot_plugin_yeli_relationship
+display_name: 夜璃关系本
+author: 冰糖
+version: v1.1.0
+astrbot_version: ">=4.16"
+desc: 夜璃关系本：轻量联系人索引插件，支持群聊/私聊/全局分域、白名单开关、私聊保护与按需瘦身注入。
+short_desc: 让 bot 自动维护群友称呼、关系与简要资料。
+support_platforms:
+  - aiocqhttp
+repo: https://github.com/Mikachiyo/astrbot_plugin_Mikachiyo_relationship
