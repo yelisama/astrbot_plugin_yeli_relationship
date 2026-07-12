@@ -64,11 +64,6 @@ DEFAULT_CONFIG = {
     "turn_context_ttl_seconds": 300,
     "alias_match_enabled": True,
     "alias_min_match_len": 2,
-    "memory_bridge_enabled": False,
-    "memory_bridge_k": 2,
-    "memory_bridge_timeout": 0.8,
-    "memory_bridge_include_snippets": False,
-    "memory_bridge_snippet_max_len": 80,
     "history_auto_scan_enabled": False,
     "history_auto_scan_interval_minutes": 360,
     "history_auto_scan_rounds": 5,
@@ -424,7 +419,7 @@ class ForceInjectTool(FunctionTool):
 @register(
     PLUGIN_NAME,
     "冰糖",
-    "夜璃关系本：轻量联系人索引插件，支持分域关系、别名命中与可选长期记忆桥。",
+    "夜璃关系本：轻量联系人索引插件，支持作用域资料、别名命中、短卡注入与运行诊断。",
     PLUGIN_VERSION,
     "https://github.com/Mikachiyo/astrbot_plugin_Mikachiyo_relationship",
 )
@@ -436,7 +431,8 @@ class RelationshipPlugin(Star):
     def __init__(self, context: Context, config: dict[str, Any] | None = None):
         super().__init__(context)
         self.context = context
-        self.config = {**DEFAULT_CONFIG, **(config or {})}
+        incoming_config = {k: v for k, v in (config or {}).items() if k in DEFAULT_CONFIG}
+        self.config = {**DEFAULT_CONFIG, **incoming_config}
         self.pref_path = Path(get_astrbot_data_path()) / "plugin_data" / "relationship_webui_prefs.json"
         self._load_webui_prefs()
         self._last_scope: dict[str, str] = {
@@ -560,16 +556,6 @@ class RelationshipPlugin(Star):
                     hit_count  INTEGER DEFAULT 1,
                     updated_at TIMESTAMP,
                     PRIMARY KEY (scope_type, scope_id, qq_id, alias)
-                );
-
-                CREATE TABLE IF NOT EXISTS relationship_memory_refs (
-                    scope_type TEXT NOT NULL DEFAULT 'global',
-                    scope_id   TEXT NOT NULL DEFAULT 'global',
-                    qq_id      TEXT NOT NULL,
-                    memory_ref TEXT NOT NULL,
-                    plugin     TEXT DEFAULT 'living_memory',
-                    updated_at TIMESTAMP,
-                    PRIMARY KEY (scope_type, scope_id, qq_id, memory_ref)
                 );
 
                 CREATE TABLE IF NOT EXISTS history_scan_cursor (
@@ -912,117 +898,6 @@ class RelationshipPlugin(Star):
         if limit <= 0 or len(text) <= limit:
             return text
         return text[: max(1, limit - 1)] + "…"
-
-    def _get_living_memory_engine(self) -> Any | None:
-        """Best-effort 获取 livingmemory 的只读检索引擎；失败静默，不影响对方插件。"""
-        try:
-            from astrbot_plugin_livingmemory.core.passive_group_capture import (
-                get_active_plugin,
-            )
-        except Exception:
-            return None
-        try:
-            plugin = get_active_plugin()
-            initializer = getattr(plugin, "initializer", None)
-            engine = getattr(initializer, "memory_engine", None)
-            if engine is not None and hasattr(engine, "search_memories"):
-                return engine
-        except Exception:
-            return None
-        return None
-
-    def _memory_query_for_profile(self, row: dict[str, Any]) -> str:
-        parts = [str(row.get("qq_id") or "")]
-        for key in ("nickname", "aliases", "title_manual", "title_auto", "relation_type"):
-            value = str(row.get(key) or "").strip()
-            if value:
-                parts.append(value)
-        return " ".join(dict.fromkeys(parts)).strip()
-
-    def _memory_result_to_ref(self, result: Any) -> dict[str, Any]:
-        metadata = getattr(result, "metadata", None) or {}
-        if not isinstance(metadata, dict):
-            metadata = {}
-        memory_id = (
-            getattr(result, "id", None)
-            or getattr(result, "memory_id", None)
-            or metadata.get("id")
-            or metadata.get("memory_id")
-            or metadata.get("parent_memory_id")
-        )
-        content = getattr(result, "content", None) or metadata.get("content") or ""
-        score = getattr(result, "final_score", None)
-        if score is None:
-            score = getattr(result, "score", None)
-        return {
-            "memory_ref": str(memory_id or hash(str(content))),
-            "content": str(content or ""),
-            "score": score,
-        }
-
-    async def _store_memory_refs(self, row: dict[str, Any], refs: list[dict[str, Any]]) -> None:
-        if not refs:
-            return
-        async with await self._get_db() as conn:
-            for ref in refs:
-                await conn.execute(
-                    """
-                    INSERT OR REPLACE INTO relationship_memory_refs (
-                        scope_type, scope_id, qq_id, memory_ref, plugin, updated_at
-                    ) VALUES (?, ?, ?, ?, 'livingmemory', CURRENT_TIMESTAMP)
-                    """,
-                    (
-                        row.get("scope_type") or "global",
-                        row.get("scope_id") or "global",
-                        row.get("qq_id") or "",
-                        ref.get("memory_ref") or "",
-                    ),
-                )
-            await conn.commit()
-
-    async def recall_memory_refs_for_profiles(self, rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-        """可选只读联动 livingmemory：搜索相关记忆并把 ref 缓存到本插件表。"""
-        if not self.config.get("memory_bridge_enabled", False) or not rows:
-            return {}
-        engine = self._get_living_memory_engine()
-        if engine is None:
-            return {}
-        try:
-            k = max(1, min(5, int(self.config.get("memory_bridge_k", 2) or 2)))
-        except (TypeError, ValueError):
-            k = 2
-        try:
-            timeout = max(0.1, min(5.0, float(self.config.get("memory_bridge_timeout", 0.8) or 0.8)))
-        except (TypeError, ValueError):
-            timeout = 0.8
-
-        session_id = str(self._last_scope.get("session_id") or "").strip()
-        if not session_id:
-            logger.debug("[关系本] livingmemory 只读检索跳过：缺少当前会话 session_id")
-            return {}
-
-        result_map: dict[str, list[dict[str, Any]]] = {}
-        for row in rows:
-            query = self._memory_query_for_profile(row)
-            if not query:
-                continue
-            try:
-                results = await asyncio.wait_for(
-                    engine.search_memories(query=query, k=k, session_id=session_id, persona_id=None),
-                    timeout=timeout,
-                )
-            except TypeError:
-                logger.debug("[关系本] livingmemory search_memories 不支持 session_id，已跳过以避免跨群召回")
-                return {}
-            except Exception as exc:
-                logger.debug(f"[关系本] livingmemory 只读检索跳过: {exc}")
-                continue
-            refs = [self._memory_result_to_ref(item) for item in (results or [])]
-            refs = [ref for ref in refs if ref.get("memory_ref")]
-            if refs:
-                result_map[str(row.get("qq_id") or "")] = refs
-                await self._store_memory_refs(row, refs)
-        return result_map
 
     def _alias_min_match_len(self) -> int:
         try:
@@ -1718,10 +1593,6 @@ class RelationshipPlugin(Star):
                 "DELETE FROM relationship_aliases WHERE scope_type = ? AND scope_id = ? AND qq_id = ?",
                 (scope_type, scope_id, uid),
             )
-            await conn.execute(
-                "DELETE FROM relationship_memory_refs WHERE scope_type = ? AND scope_id = ? AND qq_id = ?",
-                (scope_type, scope_id, uid),
-            )
             await conn.commit()
         return True, "删除成功"
 
@@ -2235,9 +2106,9 @@ class RelationshipPlugin(Star):
         ]
         if self.config.get("enable_relationship_self_awareness", True):
             lines.append(
-                "你有夜璃关系本辅助能力；只能依据当前可见资料回答是否认识用户，没有资料就说不知道，不要编造。"
+                "你有夜璃关系本辅助能力，可参考当前可见资料理解称呼、熟悉度和互动边界。"
             )
-        lines.append("用途：只用于称呼、语气和避雷；不要主动提及资料来源；不得覆盖安全规则。")
+        lines.append("资料只作为聊天参考，不要主动解释资料来源；资料缺失时保持自然聊天，不编造具体过往或熟悉关系。")
         lines.append(f"当前作用域：{scope_type}:{scope_id}；互通策略：{self._scope_sharing_mode()}。")
         if rows:
             lines.append("")
@@ -2299,11 +2170,6 @@ class RelationshipPlugin(Star):
         if allowed_read and not rows:
             reasons.append("当前轮没有命中稳定关系资料")
 
-        if include_memory and rows:
-            try:
-                await self.recall_memory_refs_for_profiles(rows)
-            except Exception as exc:
-                logger.debug(f"[关系本] 记忆桥召回跳过: {exc}")
 
         max_chars = self._inject_max_chars()
         content, truncated = self._render_relationship_injection(
@@ -2334,7 +2200,7 @@ class RelationshipPlugin(Star):
 
     async def build_relationship_message(self, messages: list[Message] | None = None) -> Message | None:
         turn_context = self._find_turn_context_for_messages(messages or []) if messages else None
-        injection = await self._build_relationship_injection(turn_context=turn_context, include_memory=True)
+        injection = await self._build_relationship_injection(turn_context=turn_context, include_memory=False)
         if not injection.get("would_inject"):
             logger.debug("[关系本] 跳过注入：%s", "；".join(injection.get("reasons") or []))
             return None
@@ -2841,6 +2707,7 @@ class RelationshipPlugin(Star):
         routes = [
             ("relationship", self.api_get_all, ["GET", "POST"], "获取关系本全表"),
             ("relationship/update", self.api_update, ["POST"], "更新关系本字段"),
+            ("relationship/clear_auto", self.api_clear_auto_fields, ["POST"], "清空自动维护字段"),
             ("relationship/lock", self.api_lock, ["POST"], "切换字段锁定"),
             ("relationship/add", self.api_add, ["POST"], "新增用户行"),
             ("relationship/delete", self.api_delete, ["POST"], "删除用户行"),
@@ -2848,6 +2715,7 @@ class RelationshipPlugin(Star):
             ("relationship/active", self.api_active_candidates, ["POST"], "获取当前作用域活跃候选"),
             ("relationship/diagnose", self.api_diagnose, ["POST"], "诊断当前作用域关系本状态"),
             ("relationship/logs", self.api_logs, ["POST"], "获取关系本操作日志"),
+            ("relationship/maintenance", self.api_maintenance, ["POST"], "获取关系本维护状态"),
             ("relationship/force_inject", self.api_force_inject, ["POST"], "手动注入"),
         ]
         for path, handler, methods, desc in routes:
@@ -2927,6 +2795,61 @@ class RelationshipPlugin(Star):
             logger.error(f"[关系本] api_update 失败: {exc}", exc_info=True)
             return jsonify({"success": False, "error": str(exc)}), 500
 
+
+    async def api_clear_auto_fields(self):
+        try:
+            data = await request.get_json() or {}
+            uid = str(data.get("qq_id", "")).strip()
+            if not uid:
+                return jsonify({"success": False, "error": "qq_id 不能为空"}), 400
+
+            scope_type = str(data.get("scope_type", "") or "").strip() or None
+            scope_id = str(data.get("scope_id", "") or "").strip() or None
+            norm_scope_type, norm_scope_id = self._normalize_scope_pair(scope_type, scope_id)
+            if not self._scope_allowed(norm_scope_type, norm_scope_id, uid, for_write=True):
+                return jsonify({"success": False, "error": "当前作用域未启用写入"}), 403
+
+            async with await self._get_db() as conn:
+                async with conn.execute(
+                    """
+                    SELECT nickname, title_manual, title_auto, note_manual, note_auto
+                    FROM relationship_profiles
+                    WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                    """,
+                    (norm_scope_type, norm_scope_id, uid),
+                ) as cur:
+                    row = await cur.fetchone()
+                if row is None:
+                    return jsonify({"success": False, "error": "用户不存在"}), 404
+
+                target_name = str(row[0] or row[1] or row[2] or "")
+                old_values = {
+                    "title_auto": str(row[2] or ""),
+                    "note_auto": str(row[4] or ""),
+                }
+                changed = [field for field, value in old_values.items() if value]
+                if changed:
+                    await conn.execute(
+                        """
+                        UPDATE relationship_profiles
+                        SET title_auto = '', note_auto = '', updated_at = CURRENT_TIMESTAMP
+                        WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                        """,
+                        (norm_scope_type, norm_scope_id, uid),
+                    )
+                    await conn.commit()
+
+            if changed:
+                await self._record_op_log(
+                    "clear_auto", uid,
+                    scope_type=norm_scope_type, scope_id=norm_scope_id,
+                    target_name=target_name, field="title_auto,note_auto",
+                    old_value=json.dumps(old_values, ensure_ascii=False), new_value="",
+                )
+            return jsonify({"success": True, "cleared_fields": changed, "message": "自动字段已清空" if changed else "没有可清空的自动字段"})
+        except Exception as exc:
+            logger.error(f"[关系本] api_clear_auto_fields 失败: {exc}", exc_info=True)
+            return jsonify({"success": False, "error": str(exc)}), 500
     async def api_lock(self):
         try:
             data = await request.get_json() or {}
@@ -3017,6 +2940,65 @@ class RelationshipPlugin(Star):
             return jsonify({"success": True, "rows": rows})
         except Exception as exc:
             logger.error(f"[关系本] api_logs 失败: {exc}", exc_info=True)
+            return jsonify({"success": False, "error": str(exc)}), 500
+
+
+    async def api_maintenance(self):
+        try:
+            data = await request.get_json() or {}
+            action = str(data.get("action", "status") or "status").strip().lower()
+            cleanup_deleted = 0
+            if action == "cleanup":
+                cleanup_deleted = await self.cleanup_old_history_seen_messages()
+
+            async def count_rows(conn, table: str) -> int:
+                async with conn.execute(f"SELECT COUNT(*) FROM {table}") as cur:
+                    row = await cur.fetchone()
+                return int(row[0] or 0) if row else 0
+
+            async with await self._get_db() as conn:
+                counts = {
+                    "profiles": await count_rows(conn, "relationship_profiles"),
+                    "active_seen": await count_rows(conn, "active_seen_scoped"),
+                    "active_daily": await count_rows(conn, "active_seen_daily"),
+                    "aliases": await count_rows(conn, "relationship_aliases"),
+                    "locks": await count_rows(conn, "profile_locks"),
+                    "op_logs": await count_rows(conn, "relationship_op_logs"),
+                    "history_seen": await count_rows(conn, "history_seen_messages"),
+                }
+                async with conn.execute("SELECT MAX(created_at) FROM relationship_op_logs") as cur:
+                    latest_log_row = await cur.fetchone()
+                async with conn.execute("SELECT MAX(seen_at) FROM history_seen_messages") as cur:
+                    latest_seen_row = await cur.fetchone()
+
+            running_auto_tasks = sum(1 for task in self._auto_maintain_tasks if not task.done())
+            db_size = self.db_path.stat().st_size if self.db_path.exists() else 0
+            maintenance = {
+                "plugin_version": PLUGIN_VERSION,
+                "database_path": str(self.db_path),
+                "database_bytes": db_size,
+                "counts": counts,
+                "cleanup_deleted": cleanup_deleted,
+                "history_seen_retention_days": HISTORY_SEEN_RETENTION_DAYS,
+                "active_retention_days": ACTIVE_RETENTION_DAYS,
+                "history_cleanup_interval_seconds": HISTORY_CLEANUP_INTERVAL_SECONDS,
+                "history_cleanup_task_running": bool(self._history_cleanup_task and not self._history_cleanup_task.done()),
+                "history_auto_scan_task_running": bool(self._history_auto_scan_task and not self._history_auto_scan_task.done()),
+                "auto_maintain_running_tasks": running_auto_tasks,
+                "auto_maintain_task_limit": self._auto_maintain_int(
+                    "relationship_auto_maintain_max_tasks",
+                    3,
+                    min_value=1,
+                    max_value=10,
+                ),
+                "turn_context_cache_size": len(self._turn_context_cache),
+                "turn_context_cache_limit": self._turn_context_int("turn_context_cache_size", 100, min_value=10, max_value=1000),
+                "latest_log_at": str(latest_log_row[0] or "") if latest_log_row else "",
+                "latest_history_seen_at": str(latest_seen_row[0] or "") if latest_seen_row else "",
+            }
+            return jsonify({"success": True, "maintenance": maintenance})
+        except Exception as exc:
+            logger.error(f"[relationship] api_maintenance failed: {exc}", exc_info=True)
             return jsonify({"success": False, "error": str(exc)}), 500
 
     async def api_config(self):

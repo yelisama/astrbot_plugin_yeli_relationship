@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>夜璃关系本 · 管理</title>
+  <title>夜璃关系本 v1.2 · 管理</title>
   <style>
     /* ========================================
        令牌 & 动画基础
@@ -170,6 +170,8 @@
     ======================================== */
     .brand { margin-bottom: 12px; text-align: center; }
     .brand h1 { font-size: 20px; font-weight: 650; letter-spacing: 1px; color: var(--heading); margin: 0 0 8px; }
+    .version-badge { display: inline-flex; align-items: center; height: 20px; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: rgba(139,160,175,0.14); color: var(--text-soft); font-size: 11px; font-weight: 650; vertical-align: middle; letter-spacing: 0; }
+    .brand-subtitle { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 auto 6px; max-width: 230px; }
     .brand .back-btn {
       display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
       padding: 7px 14px; border-radius: 50px; font-size: 12px; font-weight: 600;
@@ -231,6 +233,21 @@
     .current h2 { font-size: 18px; margin: 0; color: var(--heading); }
     .current p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .runtime-status {
+      display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px;
+      margin: 0 0 12px;
+    }
+    .status-chip {
+      min-height: 56px; padding: 10px 12px; border-radius: var(--radius-sm);
+      background: var(--glass-bg); border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-edge);
+      display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0;
+    }
+    .status-chip span { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status-chip strong { color: var(--heading); font-size: 13px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status-chip.ok { border-color: rgba(74,158,107,0.28); }
+    .status-chip.warn { border-color: rgba(212,168,83,0.34); }
+    .status-chip.danger { border-color: rgba(224,123,110,0.34); }
 
     /* ========================================
        统计卡片
@@ -426,6 +443,15 @@
     }
     button.icon-danger:hover { background: var(--danger-soft); }
 
+    .action-buttons { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+    button.icon-soft {
+      width: 28px; height: 28px; padding: 0; justify-content: center; border-radius: 6px;
+      background: var(--input-bg); color: var(--text-soft); border: 1px solid var(--input-border);
+      font-size: 12px; font-weight: 650;
+    }
+    button.icon-soft:hover { background: var(--glass-bg); border-color: var(--glass-border); }
+    button.icon-soft:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
     /* ========================================
        主题切换器
     ======================================== */
@@ -506,7 +532,23 @@
     .diagnose-row span { color: var(--muted); font-size: 12px; }
     .diagnose-row strong { font-size: 13px; }
     .diagnose-preview { margin-top: 8px; padding: 10px; border-radius: 8px; background: rgba(139,160,175,0.08); color: var(--text-soft); font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow: auto; }
+    .diagnose-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--divider-light); }
+    .diagnose-section h3 { margin: 0 0 7px; color: var(--heading); font-size: 12px; font-weight: 650; }
+    .diagnose-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .diagnose-tag { max-width: 100%; padding: 4px 7px; border-radius: 999px; background: rgba(139,160,175,0.10); color: var(--text-soft); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .diagnose-tag.warn { background: rgba(212,168,83,0.14); color: var(--warn); }
+    .diagnose-tag.ok { background: rgba(74,158,107,0.12); color: var(--ok); }
     .reasons { margin: 8px 0 0; padding-left: 16px; color: var(--muted); line-height: 1.7; font-size: 12px; }
+
+    .simple-config { display: grid; gap: 10px; }
+    .config-summary { padding: 9px 10px; border-radius: 8px; background: rgba(139,160,175,0.08); color: var(--text-soft); font-size: 12px; line-height: 1.55; }
+    .config-grid { display: grid; gap: 8px; }
+    .config-field { display: grid; gap: 4px; }
+    .config-field label { color: var(--muted); font-size: 12px; }
+    .toggle-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; color: var(--text-soft); font-size: 13px; border-bottom: 1px solid rgba(139,160,175,0.08); }
+    .toggle-line:last-child { border-bottom: 0; }
+    .toggle-line input { width: 16px; height: 16px; accent-color: var(--accent); }
+    .config-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
     /* ========================================
        面包屑 / 返回
@@ -582,6 +624,7 @@
     @media (max-width: 1200px) {
       .app { grid-template-columns: 280px minmax(0, 1fr); gap: 10px; padding: 14px; }
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .runtime-status { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
     @media (max-width: 900px) {
       .app { display: block; padding: 12px; }
@@ -600,6 +643,7 @@
       .sidebar { grid-template-columns: 1fr; }
       .inspector { grid-template-columns: 1fr; }
       .stats { grid-template-columns: 1fr 1fr; }
+      .runtime-status { grid-template-columns: 1fr 1fr; }
     }
 
     /* 无障碍 */
@@ -614,10 +658,53 @@
     <!-- ====== 左侧栏 ====== -->
     <aside class="sidebar">
       <div class="brand">
-        <h1>夜璃关系本</h1>
+        <h1>&#22812;&#29827;&#20851;&#31995;&#26412; <span class="version-badge" id="versionBadge">v1.2.0</span></h1>
+        <p class="brand-subtitle">Short cards / scoped profiles / diagnostics</p>
         <a class="back-btn" id="diaryLinkTop" href="diary.html">📖 查看变动手记</a>
       </div>
 
+      <section class="panel">
+        <div class="panel-head"><h2>&#31616;&#26126;&#37197;&#32622;</h2></div>
+        <div class="panel-body simple-config">
+          <div id="configSummary" class="config-summary">Loading config...</div>
+          <div class="config-grid">
+            <div class="config-field">
+              <label for="modeSelect">&#36816;&#34892;&#27169;&#24335;</label>
+              <select id="modeSelect">
+                <option value="auto">&#33258;&#21160;&#32500;&#25252;</option>
+                <option value="read_only">&#21482;&#35835;&#19981;&#20889;</option>
+                <option value="manual">&#21482;&#20801;&#35768;&#20154;&#24037;&#32500;&#25252;</option>
+                <option value="group_only">&#20165;&#32676;&#32842;&#21551;&#29992;</option>
+                <option value="off">&#20851;&#38381;</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="sharingModeSelect">&#36164;&#26009;&#20114;&#36890;</label>
+              <select id="sharingModeSelect">
+                <option value="global_fallback">&#24403;&#21069;&#20248;&#20808; + &#20840;&#23616;&#34917;&#20805;</option>
+                <option value="isolated">&#23436;&#20840;&#38548;&#31163;</option>
+                <option value="shared">&#20840;&#37096;&#20849;&#20139;</option>
+              </select>
+            </div>
+            <div class="config-field">
+              <label for="budgetModeSelect">&#27880;&#20837;&#24378;&#24230;</label>
+              <select id="budgetModeSelect">
+                <option value="balanced">&#22343;&#34913;</option>
+                <option value="compact">&#30465; token</option>
+                <option value="rich">&#20449;&#24687;&#26356;&#23436;&#25972;</option>
+              </select>
+            </div>
+          </div>
+          <label class="toggle-line"><span>&#20801;&#35768;&#33258;&#21160;&#32500;&#25252;</span><input id="autoMaintainToggle" type="checkbox" /></label>
+          <label class="toggle-line"><span>&#31169;&#32842;&#21487;&#35835;&#21462;&#36164;&#26009;</span><input id="privateReadToggle" type="checkbox" /></label>
+          <label class="toggle-line"><span>&#31169;&#32842;&#33258;&#21160;&#32479;&#35745;</span><input id="privateStatsToggle" type="checkbox" /></label>
+          <label class="toggle-line"><span>&#21035;&#21517;&#21629;&#20013;</span><input id="aliasMatchToggle" type="checkbox" /></label>
+          <div class="config-actions">
+            <button id="applyRecommendedBtn" class="secondary">&#25512;&#33616;&#32676;&#32842;&#27169;&#24335;</button>
+            <button id="saveSimpleConfigBtn" class="primary">&#20445;&#23384;&#37197;&#32622;</button>
+          </div>
+        </div>
+      </section>
       <section class="panel">
         <div class="panel-head">
           <h2>作用域</h2>
@@ -651,6 +738,15 @@
         <div class="panel-body"><div id="diagnoseBox" class="diagnose"></div></div>
       </section>
 
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>维护状态</h2>
+          <button id="maintenanceCleanupBtn" class="secondary" style="padding:4px 10px;font-size:12px;">清理过期</button>
+        </div>
+        <div class="panel-body"><div id="maintenanceBox" class="diagnose"></div></div>
+      </section>
+
       <section class="panel">
         <div class="panel-head">
           <h2>活跃候选</h2>
@@ -675,6 +771,8 @@
           <button id="forceInjectBtn" class="primary">下次强制注入</button>
         </div>
       </div>
+
+      <div id="runtimeStatus" class="runtime-status" aria-live="polite"></div>
 
       <div class="stats">
         <div class="stat"><strong id="statProfiles">0</strong><span>关系资料</span></div>
@@ -777,6 +875,22 @@
       }[ch]));
     }
 
+    function formatBytes(value) {
+      const n = Number(value || 0);
+      if (n < 1024) return `${n} B`;
+      if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+      return `${(n / 1024 / 1024).toFixed(2)} MB`;
+    }
+    function runningText(value) { return value ? "运行中" : "未运行"; }
+    function statusChip(label, value, tone = "neutral") {
+      return `<div class="status-chip ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+    }
+    function renderTags(items, emptyText, tone = "neutral") {
+      const values = (items || []).filter(v => String(v || "").trim());
+      if (!values.length) return `<span class="diagnose-tag">${escapeHtml(emptyText)}</span>`;
+      return values.map(v => `<span class="diagnose-tag ${tone}">${escapeHtml(v)}</span>`).join("");
+    }
+
     /* ========================================
        主题管理
     ======================================== */
@@ -848,10 +962,12 @@
     ======================================== */
     const state = {
       config: {},
+      pluginVersion: "v1.2.0",
       scope: { scope_type: "global", scope_id: "global", label: "全局资料" },
       rows: [],
       activeRows: [],
       diagnosis: null,
+      maintenance: null,
       page: 1,
       pageSize: 10,
     };
@@ -934,6 +1050,56 @@
       if (Array.isArray(v)) return v.map(String).filter(Boolean);
       if (typeof v === "string") return v.split(",").map(x => x.trim()).filter(Boolean);
       return [];
+    }
+
+    function renderSimpleConfig() {
+      if (!$('modeSelect')) return;
+      const cfg = state.config || {};
+      $('versionBadge').textContent = state.pluginVersion || 'v1.2.0';
+      $('modeSelect').value = cfg.mode || 'auto';
+      $('sharingModeSelect').value = cfg.scope_sharing_mode || 'global_fallback';
+      $('budgetModeSelect').value = cfg.inject_budget_mode || 'balanced';
+      $('autoMaintainToggle').checked = cfg.relationship_auto_maintain_enabled !== false;
+      $('privateReadToggle').checked = cfg.private_read_enabled !== false;
+      $('privateStatsToggle').checked = !!cfg.private_stats_enabled;
+      $('aliasMatchToggle').checked = cfg.alias_match_enabled !== false;
+      $('configSummary').textContent = `${cfg.mode || 'auto'} / ${cfg.scope_sharing_mode || 'global_fallback'} / ${cfg.inject_budget_mode || 'balanced'}; private stats: ${cfg.private_stats_enabled ? 'on' : 'off'}`;
+    }
+    async function updateConfigPatch(patch, message) {
+      const resp = await bridge.apiPost('relationship/config', patch);
+      if (!resp.success) throw new Error(resp.error || 'config save failed');
+      state.config = resp.config || { ...state.config, ...patch };
+      state.pluginVersion = resp.version || state.pluginVersion;
+      renderSimpleConfig();
+      renderStats();
+      toast(message || 'config saved', 'success');
+    }
+    async function saveSimpleConfig() {
+      await updateConfigPatch({
+        mode: $('modeSelect').value,
+        scope_sharing_mode: $('sharingModeSelect').value,
+        inject_budget_mode: $('budgetModeSelect').value,
+        relationship_auto_maintain_enabled: $('autoMaintainToggle').checked,
+        private_read_enabled: $('privateReadToggle').checked,
+        private_stats_enabled: $('privateStatsToggle').checked,
+        alias_match_enabled: $('aliasMatchToggle').checked,
+      }, 'config saved');
+    }
+    async function applyRecommendedConfig() {
+      await updateConfigPatch({
+        mode: 'auto',
+        scope_sharing_mode: 'global_fallback',
+        inject_budget_mode: 'balanced',
+        inject_max_chars: 700,
+        inject_max_profiles: 3,
+        inject_active_profiles_enabled: false,
+        relationship_auto_maintain_enabled: true,
+        private_read_enabled: true,
+        private_stats_enabled: false,
+        alias_match_enabled: true,
+        alias_min_match_len: 2,
+        enable_relationship_self_awareness: true,
+      }, 'recommended group mode applied');
     }
     function currentScopePayload(extra = {}) {
       return { ...extra, scope_type: state.scope.scope_type, scope_id: state.scope.scope_id };
@@ -1108,6 +1274,33 @@
       animateValue($("statLocked"), lockedCount);
       $("statActive").textContent = state.activeRows.length;
       $("statMode").textContent = state.config.mode || "auto";
+      renderRuntimeStatus();
+    }
+
+    function renderRuntimeStatus() {
+      const box = $("runtimeStatus");
+      if (!box) return;
+      const cfg = state.config || {};
+      const data = state.diagnosis || null;
+      const maintenance = state.maintenance || null;
+      const scopeValue = `${state.scope?.label || "-"} \u00b7 ${state.scope?.scope_type || "global"}:${state.scope?.scope_id || "global"}`;
+      const readValue = data ? (data.allowed_read ? "\u53ef\u8bfb" : "\u62e6\u622a") : `${cfg.mode || "auto"}`;
+      const writeValue = data ? (data.allowed_write ? "\u53ef\u5199" : "\u62e6\u622a") : (cfg.relationship_auto_maintain_enabled === false ? "\u81ea\u52a8\u7ef4\u62a4\u5173" : "\u5f85\u68c0\u6d4b");
+      const injectValue = data ? (data.would_inject ? `\u4f1a\u6ce8\u5165 ${data.matched_count || 0}\u4eba` : "\u4e0d\u6ce8\u5165") : "\u672a\u68c0\u6d4b";
+      const injectTone = data ? (data.would_inject ? "ok" : "warn") : "neutral";
+      const budgetValue = data ? `${data.inject_char_count || 0}/${data.inject_max_chars || 0}${data.inject_truncated ? " \u5df2\u88c1\u526a" : ""}` : `${cfg.inject_max_chars || "-"} \u4e0a\u9650`;
+      const issueCount = data ? ((data.alias_conflicts || []).length + (data.alias_ignored_short || []).length + (data.inject_truncated ? 1 : 0)) : 0;
+      const issueValue = data ? (issueCount ? `${issueCount} \u9879\u9700\u6ce8\u610f` : "\u65e0\u51b2\u7a81") : "\u672a\u68c0\u6d4b";
+      const cacheSize = data?.turn_context_cache_size ?? maintenance?.turn_context_cache_size ?? 0;
+      const cacheLimit = data?.turn_context_cache_limit ?? maintenance?.turn_context_cache_limit ?? cfg.turn_context_cache_size ?? 0;
+      box.innerHTML = [
+        statusChip("\u4f5c\u7528\u57df", scopeValue),
+        statusChip("\u8bfb\u53d6", readValue, data && !data.allowed_read ? "warn" : "ok"),
+        statusChip("\u5199\u5165", writeValue, data && !data.allowed_write ? "warn" : "ok"),
+        statusChip("\u6ce8\u5165", injectValue, injectTone),
+        statusChip("\u9884\u7b97", budgetValue, data?.inject_truncated ? "warn" : "neutral"),
+        statusChip("\u7f13\u5b58/\u98ce\u9669", `${cacheSize}/${cacheLimit} \u00b7 ${issueValue}`, issueCount ? "warn" : "neutral"),
+      ].join("");
     }
 
     /* ========================================
@@ -1338,6 +1531,24 @@
             // 操作
             const actionTd = document.createElement("td");
             actionTd.className = "col-actions";
+            const actionWrap = document.createElement("div");
+            actionWrap.className = "action-buttons";
+            const hasAutoFields = !!(row.title_auto || row.note_auto);
+            const clearBtn = document.createElement("button");
+            clearBtn.className = "icon-soft";
+            clearBtn.title = hasAutoFields ? "清空自动称呼和自动备注" : "没有可清空的自动字段";
+            clearBtn.textContent = "清";
+            clearBtn.disabled = !hasAutoFields;
+            clearBtn.addEventListener("click", async () => {
+              if (!hasAutoFields) return;
+              if (!(await confirmAsync(`清空 ${row.nickname||row.qq_id} 的自动称呼和自动备注？`))) return;
+              try {
+                const resp = await bridge.apiPost("relationship/clear_auto", currentScopePayload({ qq_id: row.qq_id }));
+                if (!resp.success) throw new Error(resp.error||resp.message||"清空失败");
+                toast(resp.message||"已清空自动字段", "success");
+                await loadData();
+              } catch (err) { toast(`清空失败：${err.message}`, "error"); }
+            });
             const delBtn = document.createElement("button");
             delBtn.className = "icon-danger";
             delBtn.title = "删除";
@@ -1355,7 +1566,9 @@
                 await loadData();
               } catch (err) { toast(`删除失败：${err.message}`, "error"); renderRows(); }
             });
-            actionTd.appendChild(delBtn);
+            actionWrap.appendChild(clearBtn);
+            actionWrap.appendChild(delBtn);
+            actionTd.appendChild(actionWrap);
             tr.appendChild(actionTd);
 
             tbody.appendChild(tr);
@@ -1408,34 +1621,71 @@
       const box = $("diagnoseBox");
       const data = state.diagnosis;
       if (!data) {
-        box.innerHTML = '<div class="empty-state"><span class="icon-empty">🔍</span><p>点击状态检测查看注入与写入状态</p></div>';
-        $("injectBadge").textContent = "未检测";
+        box.innerHTML = '<div class="empty-state"><span class="icon-empty">&#128269;</span><p>\u70b9\u51fb\u72b6\u6001\u68c0\u6d4b\u67e5\u770b\u6ce8\u5165\u4e0e\u5199\u5165\u72b6\u6001</p></div>';
+        $("injectBadge").textContent = "\u672a\u68c0\u6d4b";
         $("injectBadge").className = "pill neutral";
+        renderRuntimeStatus();
         return;
       }
-      $("injectBadge").textContent = data.would_inject ? "会注入" : "不注入";
+      $("injectBadge").textContent = data.would_inject ? "\u4f1a\u6ce8\u5165" : "\u4e0d\u6ce8\u5165";
       $("injectBadge").className = `pill ${data.would_inject?"ok":"warn"}`;
-      const preview = data.inject_preview ? escapeHtml(data.inject_preview) : "暂无注入内容";
+      const preview = data.inject_preview ? escapeHtml(data.inject_preview) : "\u6682\u65e0\u6ce8\u5165\u5185\u5bb9";
       const reasons = (data.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join("");
+      const profiles = (data.matched_profiles || []).map(row => {
+        const name = row.nickname ? `${row.nickname} / ${row.qq_id}` : row.qq_id;
+        const scope = row.scope_type ? `${row.scope_type}:${row.scope_id}` : "";
+        return `${name}${scope ? " \u00b7 " + scope : ""}`;
+      });
+      const hitTokens = [
+        ...(data.last_mentions || []).map(v => `@/QQ ${v}`),
+        ...(data.alias_hits || []).map(v => `\u522b\u540d ${v}`),
+        ...(data.target_ids || []).map(v => `\u76ee\u6807 ${v}`),
+      ];
+      const conflicts = (data.alias_conflicts || []).map(item => `${item.token || "?"}: ${(item.qq_ids || []).join(",")}`);
+      const ignored = (data.alias_ignored_short || []).map(item => item.token || String(item));
       box.innerHTML = `
-        <div class="diagnose-row"><span>读取</span><strong>${data.allowed_read?"允许":"拦截"}</strong></div>
-        <div class="diagnose-row"><span>写入</span><strong>${data.allowed_write?"允许":"拦截"}</strong></div>
-        <div class="diagnose-row"><span>命中资料</span><strong>${data.matched_count||0}</strong></div>
-        <div class="diagnose-row"><span>候选</span><strong>${data.active_candidate_count||0}</strong></div>
-        <div class="diagnose-row"><span>注入字符</span><strong>${data.inject_char_count||0}/${data.inject_max_chars||0}${data.inject_truncated?" · 已裁剪":""}</strong></div>
-        <div class="diagnose-row"><span>预算/互通</span><strong>${escapeHtml(data.inject_budget_mode||"balanced")} · ${escapeHtml(data.sharing_mode||"global_fallback")}</strong></div>
-        <div class="diagnose-row"><span>快照缓存</span><strong>${data.turn_context_cache_size||0}/${data.turn_context_cache_limit||0} · ${data.turn_context_ttl_seconds||0}s</strong></div>
-        <div class="diagnose-preview">${preview}</div>
+        <div class="diagnose-row"><span>\u8bfb\u53d6</span><strong>${data.allowed_read?"\u5141\u8bb8":"\u62e6\u622a"}</strong></div>
+        <div class="diagnose-row"><span>\u5199\u5165</span><strong>${data.allowed_write?"\u5141\u8bb8":"\u62e6\u622a"}</strong></div>
+        <div class="diagnose-row"><span>\u6ce8\u5165</span><strong>${data.would_inject?"\u4f1a\u6ce8\u5165":"\u4e0d\u6ce8\u5165"} \u00b7 ${data.matched_count||0}\u4eba</strong></div>
+        <div class="diagnose-row"><span>\u5b57\u7b26\u9884\u7b97</span><strong>${data.inject_char_count||0}/${data.inject_max_chars||0}${data.inject_truncated?" \u00b7 \u5df2\u88c1\u526a":""}</strong></div>
+        <div class="diagnose-row"><span>\u4e92\u901a\u7b56\u7565</span><strong>${escapeHtml(data.sharing_mode||"global_fallback")} \u00b7 ${escapeHtml(data.inject_budget_mode||"balanced")}</strong></div>
+        <div class="diagnose-row"><span>\u5feb\u7167\u7f13\u5b58</span><strong>${data.turn_context_cache_size||0}/${data.turn_context_cache_limit||0} \u00b7 ${data.turn_context_ttl_seconds||0}s</strong></div>
+        <div class="diagnose-section"><h3>\u547d\u4e2d\u5bf9\u8c61</h3><div class="diagnose-tags">${renderTags(profiles, "\u6682\u65e0\u547d\u4e2d\u8d44\u6599", "ok")}</div></div>
+        <div class="diagnose-section"><h3>\u547d\u4e2d\u6765\u6e90</h3><div class="diagnose-tags">${renderTags(hitTokens, "\u672a\u547d\u4e2d @/QQ/\u522b\u540d")}</div></div>
+        <div class="diagnose-section"><h3>\u51b2\u7a81\u4e0e\u5ffd\u7565</h3><div class="diagnose-tags">${renderTags([...conflicts, ...ignored], "\u65e0\u51b2\u7a81", conflicts.length ? "warn" : "neutral")}</div></div>
+        <div class="diagnose-section"><h3>\u5b9e\u9645\u6ce8\u5165\u9884\u89c8</h3><div class="diagnose-preview">${preview}</div></div>
         <ul class="reasons">${reasons}</ul>`;
+      renderRuntimeStatus();
     }
 
-    /* ========================================
-       数据加载
-    ======================================== */
+    function renderMaintenance() {
+      const box = $("maintenanceBox");
+      if (!box) return;
+      const data = state.maintenance;
+      if (!data) {
+        box.innerHTML = '<div class="empty-state"><p>维护状态未读取</p></div>';
+        return;
+      }
+      const counts = data.counts || {};
+      const cleanupLine = data.cleanup_deleted
+        ? `<div class="diagnose-row"><span>本次清理</span><strong>${data.cleanup_deleted}</strong></div>`
+        : "";
+      box.innerHTML = `
+        <div class="diagnose-row"><span>资料/别名</span><strong>${counts.profiles||0} / ${counts.aliases||0}</strong></div>
+        <div class="diagnose-row"><span>活跃/日记录</span><strong>${counts.active_seen||0} / ${counts.active_daily||0}</strong></div>
+        <div class="diagnose-row"><span>历史去重/日志</span><strong>${counts.history_seen||0} / ${counts.op_logs||0}</strong></div>
+        <div class="diagnose-row"><span>数据库</span><strong>${formatBytes(data.database_bytes||0)}</strong></div>
+        <div class="diagnose-row"><span>后台任务</span><strong>清理${runningText(data.history_cleanup_task_running)} ? 维护${data.auto_maintain_running_tasks||0}/${data.auto_maintain_task_limit||0}</strong></div>
+        <div class="diagnose-row"><span>快照缓存</span><strong>${data.turn_context_cache_size||0}/${data.turn_context_cache_limit||0}</strong></div>
+        <div class="diagnose-row"><span>保留</span><strong>历史${data.history_seen_retention_days||0}天 ? 活跃${data.active_retention_days||0}天</strong></div>
+        ${cleanupLine}`;
+    }
+
     async function loadConfig() {
       const resp = await bridge.apiGet("relationship/config");
       if (!resp.success) throw new Error(resp.error||"配置读取失败");
       state.config = resp.config || {};
+      state.pluginVersion = resp.version || state.pluginVersion;
       applyTheme(state.config.webui_theme || savedTheme || "glass", false);
       setDarkMode(state.config.webui_dark_mode || savedDark || "light", false);
       applyScopeFromUrl();
@@ -1466,14 +1716,28 @@
       renderActive();
       renderStats();
     }
+    async function loadMaintenance(action = "status") {
+      const resp = await bridge.apiPost("relationship/maintenance", { action });
+      if (!resp.success) throw new Error(resp.error||"维护状态读取失败");
+      state.maintenance = resp.maintenance || null;
+      renderMaintenance();
+      renderRuntimeStatus();
+      return state.maintenance;
+    }
     async function loadAll() {
-      try { await loadData(); await loadActive(); state.diagnosis = null; renderDiagnosis(); }
+      try { await loadData(); await loadActive(); await loadMaintenance(); state.diagnosis = null; renderDiagnosis(); }
       catch (err) { toast(err.message, "error"); }
     }
 
     /* ========================================
        事件绑定
     ======================================== */
+    $("saveSimpleConfigBtn").addEventListener("click", async () => {
+      try { await saveSimpleConfig(); } catch(e) { toast(e.message, "error"); }
+    });
+    $("applyRecommendedBtn").addEventListener("click", async () => {
+      try { await applyRecommendedConfig(); await loadAll(); } catch(e) { toast(e.message, "error"); }
+    });
     $("reloadConfigBtn").addEventListener("click", async () => {
       try { await loadConfig(); await loadAll(); toast("配置已刷新", "success"); } catch(e) { toast(e.message, "error"); }
     });
@@ -1488,6 +1752,9 @@
     });
     $("diagnoseBtn").addEventListener("click", async () => {
       try { await runDiagnose(); toast("检测完成", "success"); } catch(e) { toast(e.message, "error"); }
+    });
+    $("maintenanceCleanupBtn").addEventListener("click", async () => {
+      try { const data = await loadMaintenance("cleanup"); toast(`过期数据已清理：${data?.cleanup_deleted||0}`, "success"); } catch(e) { toast(e.message, "error"); }
     });
     $("forceInjectBtn").addEventListener("click", async () => {
       try {

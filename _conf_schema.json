@@ -1,99 +1,86 @@
 {
   "enabled": {
-    "description": "01 基础｜启用夜璃关系本",
+    "description": "01 \u57fa\u7840\uff5c\u542f\u7528\u591c\u7483\u5173\u7cfb\u672c",
     "type": "bool",
-    "hint": "总开关。关闭后不读取、不写入、不向 bot 注入关系资料。",
+    "hint": "\u603b\u5f00\u5173\u3002\u5173\u95ed\u540e\u4e0d\u8bfb\u53d6\u3001\u4e0d\u5199\u5165\u3001\u4e0d\u5411 bot \u6ce8\u5165\u5173\u7cfb\u8d44\u6599\u3002",
     "default": true
   },
   "mode": {
-    "description": "01 基础｜运行模式",
+    "description": "01 \u57fa\u7840\uff5c\u8fd0\u884c\u6a21\u5f0f",
     "type": "string",
-    "hint": "推荐 auto。可填：off=关闭；read_only=只读取不写入；group_only=仅群聊；manual=只允许人工维护；auto=自动读取并低风险维护。",
+    "hint": "\u63a8\u8350 auto\u3002\u53ef\u586b\uff1aoff=\u5173\u95ed\uff1bread_only=\u53ea\u8bfb\u53d6\u4e0d\u5199\u5165\uff1bgroup_only=\u4ec5\u7fa4\u804a\uff1bmanual=\u53ea\u5141\u8bb8\u4eba\u5de5\u7ef4\u62a4\uff1bauto=\u81ea\u52a8\u8bfb\u53d6\u5e76\u4f4e\u98ce\u9669\u7ef4\u62a4\u3002",
     "default": "auto"
   },
   "scope_sharing_mode": {
-    "description": "02 范围｜资料互通方式",
+    "description": "02 \u8303\u56f4\uff5c\u8d44\u6599\u4e92\u901a\u65b9\u5f0f",
     "type": "string",
-    "hint": "推荐 global_fallback。可填：isolated=群聊/私聊/全局互不影响；global_fallback=当前作用域优先，全局资料补充；shared=同一 QQ 的资料可跨作用域互通。",
+    "hint": "\u63a8\u8350 global_fallback\u3002\u53ef\u586b\uff1aisolated=\u7fa4\u804a/\u79c1\u804a/\u5168\u5c40\u4e92\u4e0d\u5f71\u54cd\uff1bglobal_fallback=\u5f53\u524d\u4f5c\u7528\u57df\u4f18\u5148\uff0c\u5168\u5c40\u8d44\u6599\u8865\u5145\uff1bshared=\u540c\u4e00 QQ \u7684\u8d44\u6599\u53ef\u8de8\u4f5c\u7528\u57df\u4e92\u901a\u3002",
     "default": "global_fallback"
   },
   "private_read_enabled": {
-    "description": "02 范围｜私聊允许读取资料",
+    "description": "02 \u8303\u56f4\uff5c\u79c1\u804a\u5141\u8bb8\u8bfb\u53d6\u8d44\u6599",
     "type": "bool",
-    "hint": "开启后，私聊里 bot 可以读取对应私聊资料。不会自动把私聊资料带进群聊，除非资料互通方式允许。",
+    "hint": "\u5f00\u542f\u540e\uff0c\u79c1\u804a\u91cc bot \u53ef\u4ee5\u8bfb\u53d6\u5bf9\u5e94\u79c1\u804a\u8d44\u6599\u3002\u4e0d\u4f1a\u81ea\u52a8\u628a\u79c1\u804a\u8d44\u6599\u5e26\u8fdb\u7fa4\u804a\uff0c\u9664\u975e\u8d44\u6599\u4e92\u901a\u65b9\u5f0f\u5141\u8bb8\u3002",
     "default": true
   },
   "private_stats_enabled": {
-    "description": "02 范围｜私聊允许自动统计",
+    "description": "02 \u8303\u56f4\uff5c\u79c1\u804a\u5141\u8bb8\u81ea\u52a8\u7edf\u8ba1",
     "type": "bool",
-    "hint": "默认关闭。开启后，私聊也会自动创建资料和统计活跃。担心私聊影响群聊时保持关闭。",
+    "hint": "\u9ed8\u8ba4\u5173\u95ed\u3002\u5f00\u542f\u540e\uff0c\u79c1\u804a\u4e5f\u4f1a\u81ea\u52a8\u521b\u5efa\u8d44\u6599\u548c\u7edf\u8ba1\u6d3b\u8dc3\u3002\u62c5\u5fc3\u79c1\u804a\u5f71\u54cd\u7fa4\u804a\u65f6\u4fdd\u6301\u5173\u95ed\u3002",
     "default": false
   },
   "enable_group_whitelist": {
-    "description": "02 范围｜启用群聊白名单",
+    "description": "02 \u8303\u56f4\uff5c\u542f\u7528\u7fa4\u804a\u767d\u540d\u5355",
     "type": "bool",
-    "hint": "开启后，只在 group_whitelist 填写的群里启用关系本。",
+    "hint": "\u5f00\u542f\u540e\uff0c\u53ea\u5728 group_whitelist \u586b\u5199\u7684\u7fa4\u91cc\u542f\u7528\u5173\u7cfb\u672c\u3002",
     "default": false
   },
   "group_whitelist": {
-    "description": "02 范围｜群聊白名单",
+    "description": "02 \u8303\u56f4\uff5c\u7fa4\u804a\u767d\u540d\u5355",
     "type": "list",
-    "hint": "填写群号，例如 123456789。关闭群聊白名单时此项不生效。",
+    "hint": "\u586b\u5199\u7fa4\u53f7\uff0c\u4f8b\u5982 123456789\u3002\u5173\u95ed\u7fa4\u804a\u767d\u540d\u5355\u65f6\u6b64\u9879\u4e0d\u751f\u6548\u3002",
     "default": []
   },
   "enable_user_whitelist": {
-    "description": "02 范围｜启用用户白名单",
+    "description": "02 \u8303\u56f4\uff5c\u542f\u7528\u7528\u6237\u767d\u540d\u5355",
     "type": "bool",
-    "hint": "开启后，只对白名单 QQ 触发读取或写入。一般不需要开启。",
+    "hint": "\u5f00\u542f\u540e\uff0c\u53ea\u5bf9\u767d\u540d\u5355 QQ \u89e6\u53d1\u8bfb\u53d6\u6216\u5199\u5165\u3002\u4e00\u822c\u4e0d\u9700\u8981\u5f00\u542f\u3002",
     "default": false
   },
   "user_whitelist": {
-    "description": "02 范围｜用户白名单",
+    "description": "02 \u8303\u56f4\uff5c\u7528\u6237\u767d\u540d\u5355",
     "type": "list",
-    "hint": "填写 QQ 号。WebUI 的“切到私聊资料”也会读取这里的用户列表。",
+    "hint": "\u586b\u5199 QQ \u53f7\u3002WebUI \u7684\u201c\u5207\u5230\u79c1\u804a\u8d44\u6599\u201d\u4e5f\u4f1a\u8bfb\u53d6\u8fd9\u91cc\u7684\u7528\u6237\u5217\u8868\u3002",
     "default": []
   },
   "inject_budget_mode": {
-    "description": "03 注入｜注入强度",
+    "description": "03 \u6ce8\u5165\uff5c\u6ce8\u5165\u5f3a\u5ea6",
     "type": "string",
-    "hint": "推荐 balanced。可填：compact=省 token；balanced=均衡；rich=信息更完整。控制关系短卡长度，避免影响 bot 回复质量。",
+    "hint": "\u63a8\u8350 balanced\u3002\u53ef\u586b\uff1acompact=\u7701 token\uff1bbalanced=\u5747\u8861\uff1brich=\u4fe1\u606f\u66f4\u5b8c\u6574\u3002\u63a7\u5236\u5173\u7cfb\u77ed\u5361\u957f\u5ea6\uff0c\u907f\u514d\u5f71\u54cd bot \u56de\u590d\u8d28\u91cf\u3002",
     "default": "balanced"
   },
   "inject_active_profiles_enabled": {
-    "description": "03 注入｜附带高活跃群友",
+    "description": "03 \u6ce8\u5165\uff5c\u9644\u5e26\u9ad8\u6d3b\u8dc3\u7fa4\u53cb",
     "type": "bool",
-    "hint": "默认关闭。开启后会在预算内追加当前作用域高活跃资料，可能增加 token 并分散注意力。",
+    "hint": "\u9ed8\u8ba4\u5173\u95ed\u3002\u5f00\u542f\u540e\u4f1a\u5728\u9884\u7b97\u5185\u8ffd\u52a0\u5f53\u524d\u4f5c\u7528\u57df\u9ad8\u6d3b\u8dc3\u8d44\u6599\uff0c\u53ef\u80fd\u589e\u52a0 token \u5e76\u5206\u6563\u6ce8\u610f\u529b\u3002",
     "default": false
   },
   "enable_relationship_self_awareness": {
-    "description": "03 注入｜让 bot 知道关系本存在",
+    "description": "03 \u6ce8\u5165\uff5c\u8ba9 bot \u77e5\u9053\u5173\u7cfb\u672c\u5b58\u5728",
     "type": "bool",
-    "hint": "推荐开启。bot 被问到能力时会知道自己有夜璃关系本，但没有资料时不能编造。",
+    "hint": "\u63a8\u8350\u5f00\u542f\u3002bot \u88ab\u95ee\u5230\u80fd\u529b\u65f6\u4f1a\u77e5\u9053\u81ea\u5df1\u6709\u591c\u7483\u5173\u7cfb\u672c\uff0c\u4f46\u6ca1\u6709\u8d44\u6599\u65f6\u4e0d\u80fd\u7f16\u9020\u3002",
     "default": true
   },
   "relationship_auto_maintain_enabled": {
-    "description": "04 自动维护｜允许 bot 低风险补充资料",
+    "description": "04 \u81ea\u52a8\u7ef4\u62a4\uff5c\u5141\u8bb8 bot \u4f4e\u98ce\u9669\u8865\u5145\u8d44\u6599",
     "type": "bool",
-    "hint": "推荐开启。只在后台低频分析聊天，补充称呼、别名、关系标签、简短备注；会避开真实身份、学校、联系方式等敏感信息。",
+    "hint": "\u63a8\u8350\u5f00\u542f\u3002\u53ea\u5728\u540e\u53f0\u4f4e\u9891\u5206\u6790\u804a\u5929\uff0c\u8865\u5145\u79f0\u547c\u3001\u522b\u540d\u3001\u5173\u7cfb\u6807\u7b7e\u3001\u7b80\u77ed\u5907\u6ce8\uff1b\u4f1a\u907f\u5f00\u771f\u5b9e\u8eab\u4efd\u3001\u5b66\u6821\u3001\u8054\u7cfb\u65b9\u5f0f\u7b49\u654f\u611f\u4fe1\u606f\u3002",
     "default": true
   },
   "alias_match_enabled": {
-    "description": "04 自动维护｜启用昵称/别名命中",
+    "description": "04 \u81ea\u52a8\u7ef4\u62a4\uff5c\u542f\u7528\u6635\u79f0/\u522b\u540d\u547d\u4e2d",
     "type": "bool",
-    "hint": "推荐开启。消息提到某个昵称或别名时，按需注入对应资料；多人共用别名会跳过并在诊断里提示冲突。",
+    "hint": "\u63a8\u8350\u5f00\u542f\u3002\u6d88\u606f\u63d0\u5230\u67d0\u4e2a\u6635\u79f0\u6216\u522b\u540d\u65f6\uff0c\u6309\u9700\u6ce8\u5165\u5bf9\u5e94\u8d44\u6599\uff1b\u591a\u4eba\u5171\u7528\u522b\u540d\u4f1a\u8df3\u8fc7\u5e76\u5728\u8bca\u65ad\u91cc\u63d0\u793a\u51b2\u7a81\u3002",
     "default": true
-  },
-  "llm_provider_id": {
-    "description": "05 高级｜关系分析使用的 LLM 提供商",
-    "type": "string",
-    "hint": "可留空。留空时使用当前 bot 的默认 LLM 提供商。",
-    "default": "",
-    "_special": "select_provider"
-  },
-  "llm_model": {
-    "description": "05 高级｜关系分析使用的模型名",
-    "type": "string",
-    "hint": "可留空。只在你明确想让关系分析使用特定模型时填写。",
-    "default": ""
   }
 }

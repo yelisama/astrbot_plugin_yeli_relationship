@@ -2,7 +2,7 @@
 
 夜璃关系本是一个 AstrBot 轻量联系人索引插件，用来把人格设定里固定的人际关系表拆出来，改为可维护、可分域、可按需注入的关系资料系统。
 
-它不是长期记忆插件，也不会替代 living memory 之类的完整记忆系统。它只负责保存“这个人是谁、在当前群/私聊里该怎么称呼、哪些字段被锁定、是否需要在上下文里临时提醒”这类轻量信息。
+它不是长期记忆插件，也不和任何长期记忆插件做隐式联动。它只负责保存“这个人是谁、在当前群/私聊里该怎么称呼、哪些字段被锁定、是否需要在上下文里临时提醒”这类轻量信息。
 
 ## 主要特性
 
@@ -14,7 +14,6 @@
 - 主动关系维护：在 mode=auto 时后台低频分析聊天，保守更新称呼、别名、关系、重要度和 AI 备注
 - LLM 工具维护：支持 add_user、update_relationship、query_relationship、inject_relationship
 - Dashboard 分域管理：支持全局、群聊、私聊作用域切换
-- 可选长期记忆桥：只读联动 livingmemory，缓存记忆引用，不影响记忆插件自身运行
 - 配置 API：支持读取和热更新插件配置
 
 ## 适合场景
@@ -142,35 +141,6 @@
 默认：true
 说明：开启后，消息文本提到昵称或别名时，会自动命中对应用户并注入资料。
 
-### memory_bridge_enabled
-
-类型：bool
-默认：false
-说明：是否启用 livingmemory 只读桥。只调用记忆插件的检索能力，不修改记忆插件数据库、不注册记忆插件工具、不影响它自己的注入流程。检索时强制使用当前会话 session_id；拿不到 session_id 或对方接口不支持 session_id 时会跳过，避免跨群/跨私聊召回。
-
-### memory_bridge_k
-
-类型：int
-默认：2
-说明：每个命中用户最多关联多少条长期记忆引用。
-
-### memory_bridge_timeout
-
-类型：float
-默认：0.8
-说明：单人长期记忆检索超时秒数，避免拖慢聊天。
-
-### memory_bridge_include_snippets
-
-类型：bool
-默认：false
-说明：关闭时只注入记忆引用 ID；开启后附带短摘要，可能增加 prompt。
-
-### memory_bridge_snippet_max_len
-
-类型：int
-默认：80
-说明：长期记忆摘要片段最大长度，仅在 memory_bridge_include_snippets 开启时生效。
 
 ## 运行模式建议
 
@@ -226,7 +196,6 @@
 - relationship_profiles：新版分域关系资料表
 - profile_locks：新版分域字段锁表
 - relationship_aliases：别名索引表
-- relationship_memory_refs：外部记忆引用表
 - history_scan_cursor：每群历史扫描游标
 - history_seen_messages：历史消息去重表，避免重复扫描累加 msg_count；超过 14 天自动清理
 
@@ -302,7 +271,7 @@ POST /astrbot_plugin_yeli_relationship/relationship/config
 3. Dashboard 支持全局、群聊、私聊作用域切换。
 4. 插件内部只注册新版 API 前缀 astrbot_plugin_yeli_relationship。
 5. repo 地址未修改，发新仓库时再改。
-6. 修改 mode、白名单、注入数量或记忆桥设置后，建议观察一次日志和注入内容是否符合预期。
+6. 修改 mode、白名单或注入数量后，建议观察一次日志和注入内容是否符合预期。
 
 ## 作者
 
@@ -352,3 +321,17 @@ POST /astrbot_plugin_yeli_relationship/relationship/config
 ### 主动维护边界
 
 主动维护仍交给 bot 做保守判断，但插件会阻止明显不适合自动写入的内容：例如现实身份、年龄、学校、职业、地区、联系方式、家庭、健康等敏感资料。昵称默认只在原本为空时允许自动补全，不覆盖已有昵称。
+
+## v1.2.1 补充：可纠错与长期运行
+
+### 可纠错
+
+- Dashboard 表格操作列新增“清”按钮，只清空自动称呼 `title_auto` 和自动备注 `note_auto`，不影响手动称呼、手动备注、昵称、别名和锁定状态。
+- 后端接口：`POST /astrbot_plugin_yeli_relationship/relationship/clear_auto`，参数为 `qq_id`、`scope_type`、`scope_id`。
+- 清理动作会写入 `relationship_op_logs`，便于回看误记修正记录。
+
+### 长期运行
+
+- 新增 `relationship/maintenance` 接口，返回资料数、活跃记录数、历史去重记录数、操作日志数、数据库大小、后台任务状态和缓存大小。
+- Dashboard 新增“维护状态”面板，可查看关键运行指标，并手动清理过期历史去重和活跃日记录。
+- 自动清理仍只处理过期辅助记录，不删除关系资料本体。
