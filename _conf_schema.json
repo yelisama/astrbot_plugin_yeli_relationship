@@ -1,249 +1,99 @@
 {
   "enabled": {
-    "description": "启用夜璃关系本",
+    "description": "01 基础｜启用夜璃关系本",
     "type": "bool",
-    "hint": "总开关。关闭后不读取、不写入、不注入关系资料。",
+    "hint": "总开关。关闭后不读取、不写入、不向 bot 注入关系资料。",
     "default": true
   },
   "mode": {
-    "description": "运行模式",
+    "description": "01 基础｜运行模式",
     "type": "string",
-    "hint": "可选：off/read_only/group_only/manual/auto。manual 会禁止 LLM 工具写入，只允许后台或 API 手动维护。",
+    "hint": "推荐 auto。可填：off=关闭；read_only=只读取不写入；group_only=仅群聊；manual=只允许人工维护；auto=自动读取并低风险维护。",
     "default": "auto"
   },
-  "llm_provider_id": {
-    "description": "关系本 LLM 提供商",
+  "scope_sharing_mode": {
+    "description": "02 范围｜资料互通方式",
     "type": "string",
-    "hint": "留空或填写的提供商不存在时，使用当前正在使用的 LLM 提供商。",
+    "hint": "推荐 global_fallback。可填：isolated=群聊/私聊/全局互不影响；global_fallback=当前作用域优先，全局资料补充；shared=同一 QQ 的资料可跨作用域互通。",
+    "default": "global_fallback"
+  },
+  "private_read_enabled": {
+    "description": "02 范围｜私聊允许读取资料",
+    "type": "bool",
+    "hint": "开启后，私聊里 bot 可以读取对应私聊资料。不会自动把私聊资料带进群聊，除非资料互通方式允许。",
+    "default": true
+  },
+  "private_stats_enabled": {
+    "description": "02 范围｜私聊允许自动统计",
+    "type": "bool",
+    "hint": "默认关闭。开启后，私聊也会自动创建资料和统计活跃。担心私聊影响群聊时保持关闭。",
+    "default": false
+  },
+  "enable_group_whitelist": {
+    "description": "02 范围｜启用群聊白名单",
+    "type": "bool",
+    "hint": "开启后，只在 group_whitelist 填写的群里启用关系本。",
+    "default": false
+  },
+  "group_whitelist": {
+    "description": "02 范围｜群聊白名单",
+    "type": "list",
+    "hint": "填写群号，例如 123456789。关闭群聊白名单时此项不生效。",
+    "default": []
+  },
+  "enable_user_whitelist": {
+    "description": "02 范围｜启用用户白名单",
+    "type": "bool",
+    "hint": "开启后，只对白名单 QQ 触发读取或写入。一般不需要开启。",
+    "default": false
+  },
+  "user_whitelist": {
+    "description": "02 范围｜用户白名单",
+    "type": "list",
+    "hint": "填写 QQ 号。WebUI 的“切到私聊资料”也会读取这里的用户列表。",
+    "default": []
+  },
+  "inject_budget_mode": {
+    "description": "03 注入｜注入强度",
+    "type": "string",
+    "hint": "推荐 balanced。可填：compact=省 token；balanced=均衡；rich=信息更完整。控制关系短卡长度，避免影响 bot 回复质量。",
+    "default": "balanced"
+  },
+  "inject_active_profiles_enabled": {
+    "description": "03 注入｜附带高活跃群友",
+    "type": "bool",
+    "hint": "默认关闭。开启后会在预算内追加当前作用域高活跃资料，可能增加 token 并分散注意力。",
+    "default": false
+  },
+  "enable_relationship_self_awareness": {
+    "description": "03 注入｜让 bot 知道关系本存在",
+    "type": "bool",
+    "hint": "推荐开启。bot 被问到能力时会知道自己有夜璃关系本，但没有资料时不能编造。",
+    "default": true
+  },
+  "relationship_auto_maintain_enabled": {
+    "description": "04 自动维护｜允许 bot 低风险补充资料",
+    "type": "bool",
+    "hint": "推荐开启。只在后台低频分析聊天，补充称呼、别名、关系标签、简短备注；会避开真实身份、学校、联系方式等敏感信息。",
+    "default": true
+  },
+  "alias_match_enabled": {
+    "description": "04 自动维护｜启用昵称/别名命中",
+    "type": "bool",
+    "hint": "推荐开启。消息提到某个昵称或别名时，按需注入对应资料；多人共用别名会跳过并在诊断里提示冲突。",
+    "default": true
+  },
+  "llm_provider_id": {
+    "description": "05 高级｜关系分析使用的 LLM 提供商",
+    "type": "string",
+    "hint": "可留空。留空时使用当前 bot 的默认 LLM 提供商。",
     "default": "",
     "_special": "select_provider"
   },
   "llm_model": {
-    "description": "关系本 LLM 模型名",
+    "description": "05 高级｜关系分析使用的模型名",
     "type": "string",
-    "hint": "可选。留空时使用提供商默认模型；填写时会作为 model 参数传给 provider.text_chat。",
+    "hint": "可留空。只在你明确想让关系分析使用特定模型时填写。",
     "default": ""
-  },
-  "llm_retry_times": {
-    "description": "关系本 LLM 重试次数",
-    "type": "int",
-    "hint": "关系本内部 LLM 调用失败时的重试次数。",
-    "slider": {"min": 1, "max": 5, "step": 1},
-    "default": 2
-  },
-  "relationship_auto_maintain_enabled": {
-    "description": "启用主动关系维护",
-    "type": "bool",
-    "hint": "开启后，插件会在后台低频分析聊天内容，并保守更新称呼、别名、关系、重要度和 AI 备注。仅在 mode=auto 时生效。",
-    "default": true
-  },
-  "relationship_auto_maintain_min_interval_seconds": {
-    "description": "主动维护冷却秒数",
-    "type": "int",
-    "hint": "同一作用域同一用户两次 LLM 分析之间的最小间隔。数值越大越省 token。",
-    "slider": {"min": 10, "max": 3600, "step": 10},
-    "default": 90
-  },
-  "relationship_auto_maintain_min_message_len": {
-    "description": "主动维护最短消息长度",
-    "type": "int",
-    "hint": "短于该长度的消息不会触发关系分析，避免寒暄和表情浪费 token。",
-    "slider": {"min": 1, "max": 200, "step": 1},
-    "default": 6
-  },
-  "relationship_auto_maintain_confidence_threshold": {
-    "description": "主动维护置信度阈值",
-    "type": "float",
-    "hint": "LLM 输出的 confidence 低于该值时不会写入。建议 0.8-0.9，越高越保守。",
-    "slider": {"min": 0, "max": 1, "step": 0.05},
-    "default": 0.82
-  },
-  "relationship_auto_maintain_max_tasks": {
-    "description": "主动维护并发上限",
-    "type": "int",
-    "hint": "后台关系分析的最大并发数。低并发更稳、更省资源。",
-    "slider": {"min": 1, "max": 10, "step": 1},
-    "default": 3
-  },
-  "enable_group_whitelist": {
-    "description": "启用群聊白名单",
-    "type": "bool",
-    "hint": "开启后，只有 group_whitelist 中的群聊会启用关系本。",
-    "default": false
-  },
-  "group_whitelist": {
-    "description": "群聊白名单",
-    "type": "list",
-    "hint": "填写群号字符串，例如 123456789。enable_group_whitelist 关闭时此项不生效。",
-    "default": []
-  },
-  "enable_user_whitelist": {
-    "description": "启用用户白名单",
-    "type": "bool",
-    "hint": "开启后，只有 user_whitelist 中的用户会触发读取或写入。",
-    "default": false
-  },
-  "user_whitelist": {
-    "description": "用户白名单",
-    "type": "list",
-    "hint": "填写 QQ 号字符串。",
-    "default": []
-  },
-  "private_read_enabled": {
-    "description": "允许私聊读取资料",
-    "type": "bool",
-    "hint": "开启后，私聊作用域可以读取并注入对应关系资料。",
-    "default": true
-  },
-  "private_stats_enabled": {
-    "description": "允许私聊自动统计",
-    "type": "bool",
-    "hint": "默认关闭。开启后，私聊也会自动创建 profile 并统计活跃。",
-    "default": false
-  },
-  "inject_limit": {
-    "description": "兼容注入数量上限",
-    "type": "int",
-    "hint": "旧版兼容项。新版实际注入人数还会受 inject_budget_mode 与 inject_max_profiles 限制。",
-    "slider": {"min": 1, "max": 50, "step": 1},
-    "default": 8
-  },
-  "scope_sharing_mode": {
-    "description": "资料互通策略",
-    "type": "string",
-    "hint": "可选：isolated 完全隔离；global_fallback 允许全局资料兜底；shared 允许同一 QQ 的群聊/私聊/全局资料互通。推荐 global_fallback。",
-    "default": "global_fallback"
-  },
-  "inject_budget_mode": {
-    "description": "注入预算模式",
-    "type": "string",
-    "hint": "可选：compact 省 token；balanced 推荐；rich 较详细。关系本会按预算生成短卡，避免影响回复注意力。",
-    "default": "balanced"
-  },
-  "inject_max_chars": {
-    "description": "注入字符硬上限",
-    "type": "int",
-    "hint": "关系本单次注入的最大字符数。建议 300-900，过大容易抢占上下文注意力。",
-    "slider": {"min": 160, "max": 1600, "step": 20},
-    "default": 700
-  },
-  "inject_max_profiles": {
-    "description": "注入人数上限",
-    "type": "int",
-    "hint": "单次最多注入多少个相关用户。推荐 1-3；未被明确提及的高活跃用户默认不会注入。",
-    "slider": {"min": 1, "max": 10, "step": 1},
-    "default": 3
-  },
-  "inject_active_profiles_enabled": {
-    "description": "注入高活跃群友",
-    "type": "bool",
-    "hint": "默认关闭。开启后会在预算内追加当前作用域的高活跃资料；可能增加 token 并干扰当前回复。",
-    "default": false
-  },
-  "enable_relationship_self_awareness": {
-    "description": "启用关系本自我认知",
-    "type": "bool",
-    "hint": "开启后会注入极短能力说明，让 bot 知道自己有夜璃关系本，但没有资料时不能编造。",
-    "default": true
-  },
-  "turn_context_cache_size": {
-    "description": "会话快照缓存数量",
-    "type": "int",
-    "hint": "用于把即将注入的上下文匹配回最近消息事件，降低多群并发串作用域风险。一般无需修改。",
-    "slider": {"min": 10, "max": 1000, "step": 10},
-    "default": 100
-  },
-  "turn_context_ttl_seconds": {
-    "description": "会话快照保留秒数",
-    "type": "int",
-    "hint": "超过该时间的消息快照会被丢弃，避免旧上下文误命中。一般保持 300 秒即可。",
-    "slider": {"min": 30, "max": 3600, "step": 30},
-    "default": 300
-  },
-  "alias_match_enabled": {
-    "description": "启用昵称/别名命中",
-    "type": "bool",
-    "hint": "开启后，消息文本提到关系本昵称或别名时，会按需注入对应用户资料。冲突命中会自动跳过。",
-    "default": true
-  },
-  "alias_min_match_len": {
-    "description": "别名命中最短长度",
-    "type": "int",
-    "hint": "短于该长度的昵称/别名不会触发文本命中，避免常见短词误命中。推荐 2-4。",
-    "slider": {"min": 2, "max": 12, "step": 1},
-    "default": 2
-  },
-  "memory_bridge_enabled": {
-    "description": "启用长期记忆只读桥",
-    "type": "bool",
-    "hint": "可选联动 livingmemory。只读检索，不修改记忆插件，不影响记忆插件自己的注入和运行。默认关闭。",
-    "default": false
-  },
-  "memory_bridge_k": {
-    "description": "每人召回记忆数量",
-    "type": "int",
-    "hint": "长期记忆桥开启后，每个命中用户最多关联几条记忆引用。",
-    "slider": {"min": 1, "max": 5, "step": 1},
-    "default": 2
-  },
-  "memory_bridge_timeout": {
-    "description": "记忆桥检索超时秒数",
-    "type": "float",
-    "hint": "单人检索超时，避免拖慢聊天。建议 0.3-2.0。",
-    "slider": {"min": 0.1, "max": 5, "step": 0.1},
-    "default": 0.8
-  },
-  "memory_bridge_include_snippets": {
-    "description": "注入记忆摘要片段",
-    "type": "bool",
-    "hint": "关闭时只注入记忆引用 ID；开启后会附带短摘要。谨慎开启，避免 prompt 变长。",
-    "default": false
-  },
-  "memory_bridge_snippet_max_len": {
-    "description": "记忆摘要最大长度",
-    "type": "int",
-    "hint": "仅在注入记忆摘要片段时生效。",
-    "slider": {"min": 20, "max": 200, "step": 10},
-    "default": 80
-  },
-  "history_auto_scan_enabled": {
-    "description": "启用白名单群历史自动扫描",
-    "type": "bool",
-    "hint": "默认关闭。开启后后台会按间隔扫描 group_whitelist 中的群，只统计纯文本活跃候选。",
-    "default": false
-  },
-  "history_auto_scan_interval_minutes": {
-    "description": "自动扫描间隔分钟",
-    "type": "int",
-    "hint": "两轮自动扫描之间的间隔。建议 60-720，最低运行时限制为 5 分钟。",
-    "slider": {"min": 5, "max": 1440, "step": 5},
-    "default": 360
-  },
-  "history_auto_scan_rounds": {
-    "description": "每群自动扫描轮数",
-    "type": "int",
-    "hint": "每个白名单群每次扫描多少轮历史。运行时限制 1-20。",
-    "slider": {"min": 1, "max": 20, "step": 1},
-    "default": 5
-  },
-  "history_auto_scan_per_count": {
-    "description": "每轮自动扫描条数",
-    "type": "int",
-    "hint": "每轮拉取多少条群历史消息。运行时限制 1-50。",
-    "slider": {"min": 1, "max": 50, "step": 1},
-    "default": 20
-  },
-  "history_auto_scan_auto_profile": {
-    "description": "自动扫描后直接入册",
-    "type": "bool",
-    "hint": "默认关闭。关闭时只写 active_seen 活跃候选；开启后同时创建群作用域 profile。",
-    "default": false
-  },
-  "history_auto_scan_group_delay_seconds": {
-    "description": "自动扫描群间隔秒数",
-    "type": "int",
-    "hint": "扫描多个白名单群时，每个群之间等待多久，避免压协议端。",
-    "slider": {"min": 0, "max": 300, "step": 1},
-    "default": 5
   }
 }

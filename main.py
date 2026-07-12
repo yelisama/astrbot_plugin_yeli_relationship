@@ -33,6 +33,7 @@ except ImportError as exc:
     raise RuntimeError("astrbot_plugin_yeli_relationship requires aiosqlite>=0.19") from exc
 
 PLUGIN_NAME = "astrbot_plugin_yeli_relationship"
+PLUGIN_VERSION = "v1.2.0"
 API_PREFIX = f"/{PLUGIN_NAME}"
 REL_MARKER = "【关系本维护说明】"
 NOTE_AUTO_MAX_LEN = 20
@@ -424,7 +425,7 @@ class ForceInjectTool(FunctionTool):
     PLUGIN_NAME,
     "冰糖",
     "夜璃关系本：轻量联系人索引插件，支持分域关系、别名命中与可选长期记忆桥。",
-    "v1.1.0",
+    PLUGIN_VERSION,
     "https://github.com/Mikachiyo/astrbot_plugin_Mikachiyo_relationship",
 )
 class RelationshipPlugin(Star):
@@ -3021,7 +3022,7 @@ class RelationshipPlugin(Star):
     async def api_config(self):
         try:
             if request.method == "GET":
-                return jsonify({"success": True, "config": self.config})
+                return jsonify({"success": True, "config": self.config, "version": PLUGIN_VERSION})
             data = await request.get_json() or {}
             allowed = set(DEFAULT_CONFIG.keys())
             for key, value in data.items():
@@ -3029,7 +3030,7 @@ class RelationshipPlugin(Star):
                     self.config[key] = value
             if any(k in data for k in ("webui_theme", "webui_dark_mode")):
                 self._save_webui_prefs()
-            return jsonify({"success": True, "config": self.config})
+            return jsonify({"success": True, "config": self.config, "version": PLUGIN_VERSION})
         except Exception as exc:
             logger.error(f"[关系本] api_config 失败: {exc}", exc_info=True)
             return jsonify({"success": False, "error": str(exc)}), 500
@@ -3082,6 +3083,7 @@ class RelationshipPlugin(Star):
             if allowed_read and active_rows and not matched_rows:
                 reasons.append("只看到活跃候选，尚未转入关系资料")
             diagnosis = {
+                "plugin_version": PLUGIN_VERSION,
                 "enabled": self._is_enabled(),
                 "mode": self._mode(),
                 "scope_type": scope_type,
