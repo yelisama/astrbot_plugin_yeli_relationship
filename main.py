@@ -33,7 +33,7 @@ except ImportError as exc:
     raise RuntimeError("astrbot_plugin_yeli_relationship requires aiosqlite>=0.19") from exc
 
 PLUGIN_NAME = "astrbot_plugin_yeli_relationship"
-PLUGIN_VERSION = "v1.2.2"
+PLUGIN_VERSION = "v1.2.3"
 API_PREFIX = f"/{PLUGIN_NAME}"
 REL_MARKER = "【关系本维护说明】"
 NOTE_AUTO_MAX_LEN = 20
@@ -919,9 +919,9 @@ class RelationshipPlugin(Star):
         conditions = ["(scope_type = ? AND scope_id = ?)"]
         params: list[Any] = []
         if sharing_mode in {"global_fallback", "shared"}:
-            conditions.append("(scope_type = 'global' AND scope_id = 'global')")
+            conditions.append("(p.scope_type = 'global' AND p.scope_id = 'global')")
         if sharing_mode == "shared" and target_ids_required:
-            conditions.append("(scope_type IN ('group', 'private'))")
+            conditions.append("(p.scope_type IN ('group', 'private'))")
         return " OR ".join(conditions), params
 
     async def _alias_match_detail(self, scope_type: str, scope_id: str, text: str) -> dict[str, Any]:
@@ -932,13 +932,13 @@ class RelationshipPlugin(Star):
             return detail
         min_len = self._alias_min_match_len()
         token_hits: dict[str, set[str]] = {}
-        scope_conditions = ["(scope_type = ? AND scope_id = ?)"]
+        scope_conditions = ["(p.scope_type = ? AND p.scope_id = ?)"]
         params: list[Any] = [scope_type, scope_id]
         sharing_mode = self._scope_sharing_mode()
         if sharing_mode in {"global_fallback", "shared"}:
-            scope_conditions.append("(scope_type = 'global' AND scope_id = 'global')")
+            scope_conditions.append("(p.scope_type = 'global' AND p.scope_id = 'global')")
         if sharing_mode == "shared":
-            scope_conditions.append("(scope_type IN ('group', 'private'))")
+            scope_conditions.append("(p.scope_type IN ('group', 'private'))")
         scope_where = " OR ".join(scope_conditions)
         async with await self._get_db() as conn:
             async with conn.execute(
@@ -1039,13 +1039,17 @@ class RelationshipPlugin(Star):
         async with await self._get_db() as conn:
             async with conn.execute(
                 """
-                SELECT scope_type, scope_id, qq_id, nickname, aliases,
-                       title_manual, title_auto, note_manual, note_auto,
-                       relation_type, importance, msg_count, last_seen,
-                       updated_at, source, confidence
-                FROM relationship_profiles
-                WHERE scope_type = ? AND scope_id = ?
-                ORDER BY updated_at DESC, qq_id ASC
+                SELECT p.scope_type, p.scope_id, p.qq_id,
+                       CASE WHEN TRIM(COALESCE(p.nickname, '')) != '' THEN p.nickname
+                            ELSE COALESCE(a.nickname, '') END AS nickname,
+                       p.aliases, p.title_manual, p.title_auto, p.note_manual, p.note_auto,
+                       p.relation_type, p.importance, p.msg_count, p.last_seen,
+                       p.updated_at, p.source, p.confidence
+                FROM relationship_profiles p
+                LEFT JOIN active_seen_scoped a
+                  ON a.scope_type = p.scope_type AND a.scope_id = p.scope_id AND a.qq_id = p.qq_id
+                WHERE p.scope_type = ? AND p.scope_id = ?
+                ORDER BY p.updated_at DESC, p.qq_id ASC
                 """,
                 (scope_type, scope_id),
             ) as cur:
@@ -1476,6 +1480,16 @@ class RelationshipPlugin(Star):
                 (scope_type, scope_id, uid, nickname),
             )
             added = getattr(cur, "rowcount", 0) == 1
+            if nickname:
+                await conn.execute(
+                    """
+                    UPDATE relationship_profiles
+                    SET nickname = ?
+                    WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                      AND COALESCE(nickname, '') = ''
+                    """,
+                    (nickname, scope_type, scope_id, uid),
+                )
             if added and audit_actor:
                 await self._insert_op_log_conn(
                     conn,
@@ -1511,7 +1525,7 @@ class RelationshipPlugin(Star):
                     FROM relationship_profiles
                     WHERE qq_id = ? AND (
                         (scope_type = ? AND scope_id = ?)
-                        OR (scope_type = 'global' AND scope_id = 'global')
+                        OR (p.scope_type = 'global' AND p.scope_id = 'global')
                     )
                     ORDER BY CASE WHEN scope_type = ? AND scope_id = ? THEN 0 ELSE 1 END
                     LIMIT 1
@@ -1646,7 +1660,7 @@ class RelationshipPlugin(Star):
                 INSERT INTO active_seen_scoped (scope_type, scope_id, qq_id, nickname, msg_count, last_seen)
                 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(scope_type, scope_id, qq_id) DO UPDATE SET
-                    nickname = excluded.nickname,
+                    nickname = CASE WHEN excluded.nickname != '' THEN excluded.nickname ELSE active_seen_scoped.nickname END,
                     msg_count = MIN(?, COALESCE(active_seen_scoped.msg_count, 0) + excluded.msg_count),
                     last_seen = CURRENT_TIMESTAMP
                 """,
@@ -1657,7 +1671,7 @@ class RelationshipPlugin(Star):
                 INSERT INTO active_seen_daily (scope_type, scope_id, qq_id, day, nickname, msg_count, last_seen)
                 VALUES (?, ?, ?, date('now'), ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(scope_type, scope_id, qq_id, day) DO UPDATE SET
-                    nickname = excluded.nickname,
+                    nickname = CASE WHEN excluded.nickname != '' THEN excluded.nickname ELSE active_seen_daily.nickname END,
                     msg_count = MIN(?, COALESCE(active_seen_daily.msg_count, 0) + excluded.msg_count),
                     last_seen = CURRENT_TIMESTAMP
                 """,
@@ -1667,11 +1681,15 @@ class RelationshipPlugin(Star):
                 """
                 UPDATE relationship_profiles
                 SET msg_count = MIN(?, COALESCE(msg_count, 0) + ?),
+                    nickname = CASE
+                        WHEN ? != '' AND COALESCE(nickname, '') = '' THEN ?
+                        ELSE nickname
+                    END,
                     last_seen = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
                 """,
-                (MAX_ACTIVITY_MSG_COUNT, count, scope_type, scope_id, uid),
+                (MAX_ACTIVITY_MSG_COUNT, count, nickname, nickname, scope_type, scope_id, uid),
             )
             await conn.commit()
 
@@ -1730,35 +1748,39 @@ class RelationshipPlugin(Star):
         limit = max(1, min(50, int(limit or self.config.get("inject_limit", 8) or 8)))
         target_ids = {self._normalize_id(x) for x in (target_ids or set()) if self._normalize_id(x)}
         sharing_mode = self._scope_sharing_mode()
-        scope_conditions = ["(scope_type = ? AND scope_id = ?)"]
+        scope_conditions = ["(p.scope_type = ? AND p.scope_id = ?)"]
         params: list[Any] = [scope_type, scope_id]
         if sharing_mode in {"global_fallback", "shared"}:
-            scope_conditions.append("(scope_type = 'global' AND scope_id = 'global')")
+            scope_conditions.append("(p.scope_type = 'global' AND p.scope_id = 'global')")
         if sharing_mode == "shared" and target_ids:
-            scope_conditions.append("(scope_type IN ('group', 'private'))")
+            scope_conditions.append("(p.scope_type IN ('group', 'private'))")
         where_target = ""
         if target_ids:
             placeholders = ",".join("?" for _ in target_ids)
-            where_target = f" AND qq_id IN ({placeholders})"
+            where_target = f" AND p.qq_id IN ({placeholders})"
             params.extend(sorted(target_ids))
         scope_where = " OR ".join(scope_conditions)
         params.extend([scope_type, scope_id, limit])
         async with await self._get_db() as conn:
             async with conn.execute(
                 f"""
-                SELECT scope_type, scope_id, qq_id, nickname, aliases,
-                       title_manual, title_auto, note_manual, note_auto,
-                       relation_type, importance, msg_count, last_seen,
-                       updated_at, source, confidence
-                FROM relationship_profiles
+                SELECT p.scope_type, p.scope_id, p.qq_id,
+                       CASE WHEN TRIM(COALESCE(p.nickname, '')) != '' THEN p.nickname
+                            ELSE COALESCE(a.nickname, '') END AS nickname,
+                       p.aliases, p.title_manual, p.title_auto, p.note_manual, p.note_auto,
+                       p.relation_type, p.importance, p.msg_count, p.last_seen,
+                       p.updated_at, p.source, p.confidence
+                FROM relationship_profiles p
+                LEFT JOIN active_seen_scoped a
+                  ON a.scope_type = p.scope_type AND a.scope_id = p.scope_id AND a.qq_id = p.qq_id
                 WHERE ({scope_where})
                    {where_target}
                 ORDER BY CASE
-                         WHEN scope_type = ? AND scope_id = ? THEN 0
-                         WHEN scope_type = 'global' AND scope_id = 'global' THEN 1
+                         WHEN p.scope_type = ? AND p.scope_id = ? THEN 0
+                         WHEN p.scope_type = 'global' AND p.scope_id = 'global' THEN 1
                          ELSE 2
                          END,
-                         importance DESC, updated_at DESC, qq_id ASC
+                         p.importance DESC, p.updated_at DESC, p.qq_id ASC
                 LIMIT ?
                 """,
                 tuple(params),
