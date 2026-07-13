@@ -542,6 +542,8 @@
 
     .simple-config { display: grid; gap: 10px; }
     .config-summary { padding: 9px 10px; border-radius: 8px; background: rgba(139,160,175,0.08); color: var(--text-soft); font-size: 12px; line-height: 1.55; }
+    .config-summary.is-loading { color: var(--muted); font-style: italic; }
+    .simple-config :disabled { cursor: wait; opacity: 0.62; }
     .config-grid { display: grid; gap: 8px; }
     .config-field { display: grid; gap: 4px; }
     .config-field label { color: var(--muted); font-size: 12px; }
@@ -658,7 +660,7 @@
     <!-- ====== 左侧栏 ====== -->
     <aside class="sidebar">
       <div class="brand">
-        <h1>&#22812;&#29827;&#20851;&#31995;&#26412; <span class="version-badge" id="versionBadge">v1.2.0</span></h1>
+        <h1>&#22812;&#29827;&#20851;&#31995;&#26412; <span class="version-badge" id="versionBadge">v1.2.2</span></h1>
         <p class="brand-subtitle">Short cards / scoped profiles / diagnostics</p>
         <a class="back-btn" id="diaryLinkTop" href="diary.html">📖 查看变动手记</a>
       </div>
@@ -666,11 +668,11 @@
       <section class="panel">
         <div class="panel-head"><h2>&#31616;&#26126;&#37197;&#32622;</h2></div>
         <div class="panel-body simple-config">
-          <div id="configSummary" class="config-summary">Loading config...</div>
+          <div id="configSummary" class="config-summary" aria-live="polite">&#27491;&#22312;&#35835;&#21462;&#37197;&#32622;...</div>
           <div class="config-grid">
             <div class="config-field">
               <label for="modeSelect">&#36816;&#34892;&#27169;&#24335;</label>
-              <select id="modeSelect">
+              <select id="modeSelect" disabled>
                 <option value="auto">&#33258;&#21160;&#32500;&#25252;</option>
                 <option value="read_only">&#21482;&#35835;&#19981;&#20889;</option>
                 <option value="manual">&#21482;&#20801;&#35768;&#20154;&#24037;&#32500;&#25252;</option>
@@ -680,7 +682,7 @@
             </div>
             <div class="config-field">
               <label for="sharingModeSelect">&#36164;&#26009;&#20114;&#36890;</label>
-              <select id="sharingModeSelect">
+              <select id="sharingModeSelect" disabled>
                 <option value="global_fallback">&#24403;&#21069;&#20248;&#20808; + &#20840;&#23616;&#34917;&#20805;</option>
                 <option value="isolated">&#23436;&#20840;&#38548;&#31163;</option>
                 <option value="shared">&#20840;&#37096;&#20849;&#20139;</option>
@@ -688,17 +690,17 @@
             </div>
             <div class="config-field">
               <label for="budgetModeSelect">&#27880;&#20837;&#24378;&#24230;</label>
-              <select id="budgetModeSelect">
+              <select id="budgetModeSelect" disabled>
                 <option value="balanced">&#22343;&#34913;</option>
                 <option value="compact">&#30465; token</option>
                 <option value="rich">&#20449;&#24687;&#26356;&#23436;&#25972;</option>
               </select>
             </div>
           </div>
-          <label class="toggle-line"><span>&#20801;&#35768;&#33258;&#21160;&#32500;&#25252;</span><input id="autoMaintainToggle" type="checkbox" /></label>
-          <label class="toggle-line"><span>&#31169;&#32842;&#21487;&#35835;&#21462;&#36164;&#26009;</span><input id="privateReadToggle" type="checkbox" /></label>
-          <label class="toggle-line"><span>&#31169;&#32842;&#33258;&#21160;&#32479;&#35745;</span><input id="privateStatsToggle" type="checkbox" /></label>
-          <label class="toggle-line"><span>&#21035;&#21517;&#21629;&#20013;</span><input id="aliasMatchToggle" type="checkbox" /></label>
+          <label class="toggle-line"><span>&#20801;&#35768;&#33258;&#21160;&#32500;&#25252;</span><input id="autoMaintainToggle" type="checkbox" disabled /></label>
+          <label class="toggle-line"><span>&#31169;&#32842;&#21487;&#35835;&#21462;&#36164;&#26009;</span><input id="privateReadToggle" type="checkbox" disabled /></label>
+          <label class="toggle-line"><span>&#31169;&#32842;&#33258;&#21160;&#32479;&#35745;</span><input id="privateStatsToggle" type="checkbox" disabled /></label>
+          <label class="toggle-line"><span>&#21035;&#21517;&#21629;&#20013;</span><input id="aliasMatchToggle" type="checkbox" disabled /></label>
           <div class="config-actions">
             <button id="applyRecommendedBtn" class="secondary">&#25512;&#33616;&#32676;&#32842;&#27169;&#24335;</button>
             <button id="saveSimpleConfigBtn" class="primary">&#20445;&#23384;&#37197;&#32622;</button>
@@ -962,7 +964,7 @@
     ======================================== */
     const state = {
       config: {},
-      pluginVersion: "v1.2.0",
+      pluginVersion: "v1.2.2",
       scope: { scope_type: "global", scope_id: "global", label: "全局资料" },
       rows: [],
       activeRows: [],
@@ -1052,18 +1054,46 @@
       return [];
     }
 
+    function setConfigControlsReady(ready) {
+      const ids = [
+        "modeSelect", "sharingModeSelect", "budgetModeSelect",
+        "autoMaintainToggle", "privateReadToggle", "privateStatsToggle",
+        "aliasMatchToggle", "applyRecommendedBtn", "saveSimpleConfigBtn",
+      ];
+      ids.forEach((id) => {
+        const node = $(id);
+        if (node) node.disabled = !ready;
+      });
+      const summary = $("configSummary");
+      if (summary) summary.classList.toggle("is-loading", !ready);
+    }
+    function readConfigBool(value, fallback) {
+      if (value === undefined || value === null) return fallback;
+      if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        if (["false", "0", "off", "no", ""].includes(normalized)) return false;
+        if (["true", "1", "on", "yes"].includes(normalized)) return true;
+      }
+      return Boolean(value);
+    }
+
     function renderSimpleConfig() {
       if (!$('modeSelect')) return;
       const cfg = state.config || {};
-      $('versionBadge').textContent = state.pluginVersion || 'v1.2.0';
+      $('versionBadge').textContent = state.pluginVersion || 'v1.2.2';
       $('modeSelect').value = cfg.mode || 'auto';
       $('sharingModeSelect').value = cfg.scope_sharing_mode || 'global_fallback';
       $('budgetModeSelect').value = cfg.inject_budget_mode || 'balanced';
-      $('autoMaintainToggle').checked = cfg.relationship_auto_maintain_enabled !== false;
-      $('privateReadToggle').checked = cfg.private_read_enabled !== false;
-      $('privateStatsToggle').checked = !!cfg.private_stats_enabled;
-      $('aliasMatchToggle').checked = cfg.alias_match_enabled !== false;
-      $('configSummary').textContent = `${cfg.mode || 'auto'} / ${cfg.scope_sharing_mode || 'global_fallback'} / ${cfg.inject_budget_mode || 'balanced'}; private stats: ${cfg.private_stats_enabled ? 'on' : 'off'}`;
+      const autoMaintain = readConfigBool(cfg.relationship_auto_maintain_enabled, true);
+      const privateRead = readConfigBool(cfg.private_read_enabled, true);
+      const privateStats = readConfigBool(cfg.private_stats_enabled, false);
+      const aliasMatch = readConfigBool(cfg.alias_match_enabled, true);
+      $('autoMaintainToggle').checked = autoMaintain;
+      $('privateReadToggle').checked = privateRead;
+      $('privateStatsToggle').checked = privateStats;
+      $('aliasMatchToggle').checked = aliasMatch;
+      $('configSummary').textContent = `\u8fd0\u884c: ${cfg.mode || 'auto'} | \u4e92\u901a: ${cfg.scope_sharing_mode || 'global_fallback'} | \u6ce8\u5165: ${cfg.inject_budget_mode || 'balanced'} | \u81ea\u52a8\u7ef4\u62a4: ${autoMaintain ? '\u5df2\u5141\u8bb8' : '\u5df2\u7981\u6b62'} | \u79c1\u804a\u8bfb\u53d6: ${privateRead ? '\u5df2\u5141\u8bb8' : '\u5df2\u7981\u6b62'} | \u79c1\u804a\u7edf\u8ba1: ${privateStats ? '\u5df2\u5141\u8bb8' : '\u5df2\u7981\u6b62'}`;
+      setConfigControlsReady(true);
     }
     async function updateConfigPatch(patch, message) {
       const resp = await bridge.apiPost('relationship/config', patch);
@@ -1682,10 +1712,12 @@
     }
 
     async function loadConfig() {
+      setConfigControlsReady(false);
       const resp = await bridge.apiGet("relationship/config");
       if (!resp.success) throw new Error(resp.error||"配置读取失败");
       state.config = resp.config || {};
       state.pluginVersion = resp.version || state.pluginVersion;
+      renderSimpleConfig();
       applyTheme(state.config.webui_theme || savedTheme || "glass", false);
       setDarkMode(state.config.webui_dark_mode || savedDark || "light", false);
       applyScopeFromUrl();

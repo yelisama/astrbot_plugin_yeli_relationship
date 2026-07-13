@@ -33,7 +33,7 @@ except ImportError as exc:
     raise RuntimeError("astrbot_plugin_yeli_relationship requires aiosqlite>=0.19") from exc
 
 PLUGIN_NAME = "astrbot_plugin_yeli_relationship"
-PLUGIN_VERSION = "v1.2.1"
+PLUGIN_VERSION = "v1.2.2"
 API_PREFIX = f"/{PLUGIN_NAME}"
 REL_MARKER = "【关系本维护说明】"
 NOTE_AUTO_MAX_LEN = 20
@@ -257,15 +257,8 @@ class UpdateRelationshipTool(FunctionTool):
                 check_lock=True,
                 scope_type=scope_type,
                 scope_id=scope_id,
+                audit_actor="bot",
             )
-            if ok and old_value != value:
-                await plugin._record_op_log(
-                    "edit", uid,
-                    scope_type=norm_scope_type, scope_id=norm_scope_id,
-                    target_name=target_name, field=field,
-                    old_value=old_value, new_value=value,
-                    actor="bot",
-                )
             return json.dumps({"success": ok, "message": message}, ensure_ascii=False)
         except Exception as exc:
             logger.error(f"[关系本] update_relationship 失败: {exc}", exc_info=True)
@@ -323,15 +316,13 @@ class AddUserTool(FunctionTool):
             scope_type = str(kwargs.get("scope_type", "") or "").strip() or None
             scope_id = str(kwargs.get("scope_id", "") or "").strip() or None
             norm_scope_type, norm_scope_id = plugin._normalize_scope_pair(scope_type, scope_id)
-            added = await plugin.add_user(uid, nickname, scope_type=scope_type, scope_id=scope_id)
-            if added:
-                await plugin._record_op_log(
-                    "add", uid,
-                    scope_type=norm_scope_type, scope_id=norm_scope_id,
-                    target_name=nickname,
-                    new_value=nickname,
-                    actor="bot",
-                )
+            added = await plugin.add_user(
+                uid,
+                nickname,
+                scope_type=scope_type,
+                scope_id=scope_id,
+                audit_actor="bot",
+            )
             message = "添加成功" if added else "用户已存在，未覆盖"
             return json.dumps({"success": True, "added": added, "message": message}, ensure_ascii=False)
         except Exception as exc:
@@ -363,6 +354,17 @@ class QueryRelationshipTool(FunctionTool):
                         "default": 10,
                     },
                 },
+                    "scope_type": {
+                        "type": "string",
+                        "enum": ["global", "group", "private"],
+                        "description": "Current conversation scope type.",
+                        "default": "",
+                    },
+                    "scope_id": {
+                        "type": "string",
+                        "description": "Current group number or private QQ id.",
+                        "default": "",
+                    },
                 "required": [],
             },
         )
@@ -374,11 +376,17 @@ class QueryRelationshipTool(FunctionTool):
 
         uid = str(kwargs.get("uid", "")).strip()
         try:
+            scope_type = str(kwargs.get("scope_type", "") or "").strip() or None
+            scope_id = str(kwargs.get("scope_id", "") or "").strip() or None
             if uid:
-                row = await plugin.get_user(uid)
+                row = await plugin.get_user(uid, scope_type=scope_type, scope_id=scope_id)
                 return json.dumps({"success": True, "user": row}, ensure_ascii=False)
             limit = int(kwargs.get("limit", 10) or 10)
-            rows = await plugin.list_active_unknown(limit=limit)
+            rows = await plugin.list_active_unknown(
+                limit=limit,
+                scope_type=scope_type,
+                scope_id=scope_id,
+            )
             return json.dumps({"success": True, "active_unknown": rows}, ensure_ascii=False)
         except Exception as exc:
             logger.error(f"[关系本] query_relationship 失败: {exc}", exc_info=True)
@@ -1152,6 +1160,50 @@ class RelationshipPlugin(Star):
         except Exception as exc:
             logger.debug(f"[关系本] 写入操作日志失败: {exc}")
 
+    async def _insert_op_log_conn(
+        self,
+        conn: Any,
+        action: str,
+        uid: str,
+        *,
+        scope_type: str,
+        scope_id: str,
+        target_name: str = "",
+        field: str = "",
+        old_value: str = "",
+        new_value: str = "",
+        actor: str = "bot",
+    ) -> None:
+        """Insert an audit row on the caller's transaction."""
+        uid = str(uid or "").strip()
+        if not uid:
+            return
+        scope_type, scope_id = self._normalize_scope_pair(scope_type, scope_id)
+        if not str(target_name or "").strip():
+            async with conn.execute(
+                """
+                SELECT nickname, title_manual, title_auto
+                FROM relationship_profiles
+                WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                """,
+                (scope_type, scope_id, uid),
+            ) as cur:
+                row = await cur.fetchone()
+            target_name = next((str(value or "").strip() for value in (row or ()) if str(value or "").strip()), "")
+        created_at = datetime.now(timezone(timedelta(hours=8))).replace(microsecond=0).isoformat()
+        await conn.execute(
+            """
+            INSERT INTO relationship_op_logs (
+                scope_type, scope_id, action, target_qq, target_name,
+                field, old_value, new_value, actor, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                scope_type, scope_id, str(action or ""), uid, str(target_name or ""),
+                str(field or ""), str(old_value or ""), str(new_value or ""), str(actor or "bot"), created_at,
+            ),
+        )
+
     async def list_op_logs_admin(
         self,
         scope_type: str,
@@ -1246,6 +1298,7 @@ class RelationshipPlugin(Star):
         check_lock: bool = False,
         scope_type: str | None = None,
         scope_id: str | None = None,
+        audit_actor: str | None = None,
     ) -> tuple[bool, str]:
         if field == "qq_id":
             return False, "QQ 号不可修改"
@@ -1273,6 +1326,23 @@ class RelationshipPlugin(Star):
             return False, "当前作用域未启用写入"
 
         async with await self._get_db() as conn:
+            previous_value = ""
+            previous_target_name = ""
+            async with conn.execute(
+                f"""
+                SELECT nickname, title_manual, title_auto, {field}
+                FROM relationship_profiles
+                WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                """,
+                (scope_type, scope_id, uid),
+            ) as cur:
+                previous_row = await cur.fetchone()
+            if previous_row:
+                previous_target_name = next(
+                    (str(value or "").strip() for value in previous_row[:3] if str(value or "").strip()),
+                    "",
+                )
+                previous_value = str(previous_row[3] or "")
             if check_lock:
                 async with conn.execute(
                     """
@@ -1310,6 +1380,19 @@ class RelationshipPlugin(Star):
                 """,
                 (value, scope_type, scope_id, uid),
             )
+            if audit_actor and previous_value != value:
+                await self._insert_op_log_conn(
+                    conn,
+                    "edit",
+                    uid,
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    target_name=previous_target_name,
+                    field=field,
+                    old_value=previous_value,
+                    new_value=value,
+                    actor=audit_actor,
+                )
             await conn.commit()
         if field == "aliases":
             await self.sync_aliases_for_profile(
@@ -1373,6 +1456,7 @@ class RelationshipPlugin(Star):
         *,
         scope_type: str | None = None,
         scope_id: str | None = None,
+        audit_actor: str | None = None,
     ) -> bool:
         scope_type = scope_type or self._last_scope.get("scope_type") or "global"
         scope_id = scope_id or self._last_scope.get("scope_id") or "global"
@@ -1392,29 +1476,59 @@ class RelationshipPlugin(Star):
                 (scope_type, scope_id, uid, nickname),
             )
             added = getattr(cur, "rowcount", 0) == 1
+            if added and audit_actor:
+                await self._insert_op_log_conn(
+                    conn,
+                    "add",
+                    uid,
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    target_name=nickname,
+                    new_value=nickname,
+                    actor=audit_actor,
+                )
             await conn.commit()
         return added
 
-    async def get_user(self, uid: str) -> dict[str, Any] | None:
-        scope_type = self._last_scope.get("scope_type") or "global"
-        scope_id = self._last_scope.get("scope_id") or "global"
+    async def get_user(
+        self,
+        uid: str,
+        *,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        scope_type, scope_id = self._normalize_scope_pair(scope_type, scope_id)
+        if not self._scope_allowed(scope_type, scope_id, uid, for_write=False):
+            return None
+        allow_global_fallback = self._scope_sharing_mode() != "isolated" and scope_type != "global"
         async with await self._get_db() as conn:
-            async with conn.execute(
+            if allow_global_fallback:
+                query = """
+                    SELECT scope_type, scope_id, qq_id, nickname, aliases,
+                           title_manual, title_auto, note_manual, note_auto,
+                           relation_type, importance, msg_count, last_seen, updated_at,
+                           source, confidence
+                    FROM relationship_profiles
+                    WHERE qq_id = ? AND (
+                        (scope_type = ? AND scope_id = ?)
+                        OR (scope_type = 'global' AND scope_id = 'global')
+                    )
+                    ORDER BY CASE WHEN scope_type = ? AND scope_id = ? THEN 0 ELSE 1 END
+                    LIMIT 1
                 """
-                SELECT scope_type, scope_id, qq_id, nickname, aliases,
-                       title_manual, title_auto, note_manual, note_auto,
-                       relation_type, importance, msg_count, last_seen, updated_at,
-                       source, confidence
-                FROM relationship_profiles
-                WHERE qq_id = ? AND (
-                    (scope_type = ? AND scope_id = ?)
-                    OR (scope_type = 'global' AND scope_id = 'global')
-                )
-                ORDER BY CASE WHEN scope_type = ? AND scope_id = ? THEN 0 ELSE 1 END
-                LIMIT 1
-                """,
-                (uid, scope_type, scope_id, scope_type, scope_id),
-            ) as cur:
+                params = (uid, scope_type, scope_id, scope_type, scope_id)
+            else:
+                query = """
+                    SELECT scope_type, scope_id, qq_id, nickname, aliases,
+                           title_manual, title_auto, note_manual, note_auto,
+                           relation_type, importance, msg_count, last_seen, updated_at,
+                           source, confidence
+                    FROM relationship_profiles
+                    WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                    LIMIT 1
+                """
+                params = (scope_type, scope_id, uid)
+            async with conn.execute(query, params) as cur:
                 row = await cur.fetchone()
         if row is None:
             return None
@@ -1426,13 +1540,17 @@ class RelationshipPlugin(Star):
         ]
         return dict(zip(fields, row))
 
-    async def list_active_unknown(self, limit: int = 10) -> list[dict[str, Any]]:
+    async def list_active_unknown(
+        self,
+        limit: int = 10,
+        *,
+        scope_type: str | None = None,
+        scope_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         limit = max(1, min(50, int(limit or 10)))
-        scope_type = self._last_scope.get("scope_type") or "global"
-        scope_id = self._last_scope.get("scope_id") or "global"
+        scope_type, scope_id = self._normalize_scope_pair(scope_type, scope_id)
         if scope_type not in ("group", "private"):
-            scope_type = "global"
-            scope_id = "global"
+            return []
         async with await self._get_db() as conn:
             async with conn.execute(
                 """
@@ -1662,16 +1780,32 @@ class RelationshipPlugin(Star):
         scope_type: str | None = None,
         scope_id: str | None = None,
         source: str = "rule",
+        audit_actor: str | None = None,
     ) -> None:
         uid = self._normalize_id(uid)
         if not uid:
             return
         scope_type = scope_type or self._last_scope.get("scope_type") or "global"
         scope_id = scope_id or self._last_scope.get("scope_id") or "global"
+        scope_type, scope_id = self._normalize_scope_pair(scope_type, scope_id)
         if not self._scope_allowed(scope_type, scope_id, uid, for_write=True):
             return
         nickname = str(nickname or "").strip()
         async with await self._get_db() as conn:
+            async with conn.execute(
+                """
+                SELECT nickname, title_manual, title_auto
+                FROM relationship_profiles
+                WHERE scope_type = ? AND scope_id = ? AND qq_id = ?
+                """,
+                (scope_type, scope_id, uid),
+            ) as cur:
+                previous_row = await cur.fetchone()
+            previous_nickname = str(previous_row[0] or "") if previous_row else ""
+            previous_target_name = next(
+                (str(value or "").strip() for value in (previous_row or ()) if str(value or "").strip()),
+                "",
+            )
             await conn.execute(
                 """
                 INSERT INTO relationship_profiles (
@@ -1689,6 +1823,23 @@ class RelationshipPlugin(Star):
                 """,
                 (scope_type, scope_id, uid, nickname, source, MAX_ACTIVITY_MSG_COUNT),
             )
+            if audit_actor and (
+                (previous_row is None and nickname)
+                or (previous_row is not None and not previous_nickname and nickname)
+            ):
+                is_new = previous_row is None
+                await self._insert_op_log_conn(
+                    conn,
+                    "add" if is_new else "edit",
+                    uid,
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    target_name=nickname or previous_target_name,
+                    field="" if is_new else "nickname",
+                    old_value="" if is_new else previous_nickname,
+                    new_value=nickname,
+                    actor=audit_actor,
+                )
             await conn.commit()
 
     @staticmethod
@@ -1789,7 +1940,7 @@ class RelationshipPlugin(Star):
         if not self._scope_allowed(scope_type, scope_id, uid, for_write=True):
             return
 
-        await self.ensure_scoped_profile(uid, nickname, scope_type=scope_type, scope_id=scope_id, source="activity")
+        await self.ensure_scoped_profile(uid, nickname, scope_type=scope_type, scope_id=scope_id, source="activity", audit_actor="bot")
         current = await self.get_user(uid) or {}
         current_view = {
             "qq_id": uid,
@@ -1892,21 +2043,10 @@ class RelationshipPlugin(Star):
                 check_lock=True,
                 scope_type=scope_type,
                 scope_id=scope_id,
+                audit_actor="bot",
             )
             if ok:
                 changed.append(field)
-                target_name = str(current.get("nickname") or current.get("title_manual") or current.get("title_auto") or nickname or "")
-                await self._record_op_log(
-                    "edit",
-                    uid,
-                    scope_type=scope_type,
-                    scope_id=scope_id,
-                    target_name=target_name,
-                    field=field,
-                    old_value=old_value,
-                    new_value=value,
-                    actor="bot",
-                )
                 current[field] = value
             else:
                 logger.debug("[relationship] auto maintain skipped uid=%s field=%s reason=%s", uid, field, message)
@@ -2415,6 +2555,7 @@ class RelationshipPlugin(Star):
                     scope_type="group",
                     scope_id=group_id,
                     source="history_scan",
+                    audit_actor="bot",
                 )
 
         top = sorted(
@@ -2696,6 +2837,7 @@ class RelationshipPlugin(Star):
                     scope_type=scope_type,
                     scope_id=scope_id,
                     source="activity",
+                    audit_actor="bot",
                 )
             if scope_type in {"group", "private"}:
                 await self.record_activity(
@@ -2799,14 +2941,8 @@ class RelationshipPlugin(Star):
                 check_lock=False,
                 scope_type=scope_type,
                 scope_id=scope_id,
+                audit_actor="webui",
             )
-            if ok:
-                await self._record_op_log(
-                    "edit", uid,
-                    scope_type=norm_scope_type, scope_id=norm_scope_id,
-                    target_name=target_name, field=field,
-                    old_value=old_value, new_value=value,
-                )
             status = 200 if ok else 400
             return jsonify({"success": ok, "message": message}), status
         except Exception as exc:

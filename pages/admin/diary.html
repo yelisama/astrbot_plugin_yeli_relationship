@@ -193,6 +193,18 @@
     }
 
     /* ---- 封面 ---- */
+    .manage-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(91,154,139,0.22);
+    }
+    .manage-primary:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(91,154,139,0.3);
+    }
+
     .cover {
       text-align: center;
       padding-bottom: 28px;
@@ -510,7 +522,7 @@
       <div class="toolbar-right">
         <button id="themeBtn" class="top-action" title="切换配色">🎨 配色</button>
         <button id="darkBtn" class="top-action" title="夜间模式">🌙 夜间</button>
-        <a class="top-action" id="manageLink" href="index.html" title="进入管理面板">⚙ 管理资料</a>
+        <a class="top-action manage-primary" id="manageLink" href="index.html" title="&#36827;&#20837;&#35814;&#32454;&#36164;&#26009;&#31649;&#29702;">&#9881; &#31649;&#29702;&#35814;&#32454;&#36164;&#26009;</a>
       </div>
     </div>
 
@@ -699,28 +711,29 @@
       const label = escapeHtml(fieldLabel(log.field));
       const oldValue = escapeHtml(log.old_value || "");
       const newValue = escapeHtml(log.new_value || "");
+      const actor = log.actor === "bot" ? '<span class="field">\u591c\u7483\u81ea\u52a8</span> ' : "";
 
       switch (log.action) {
         case "add":
-          return `<span class="text">${meta.verb} <span class="name">「${name}」</span></span>`;
+          return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span></span>`;
 
         case "delete":
-          return `<span class="text">${meta.verb} <span class="name">「${name}」</span></span>`;
+          return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span></span>`;
 
         case "edit":
           if (log.old_value && log.new_value) {
-            return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>：<span class="old-val">${oldValue}</span>→ <span class="new-val">${newValue}</span></span>`;
+            return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span> \u7684<span class="field">${label}</span>\uff1a<span class="old-val">${oldValue}</span>\u2192 <span class="new-val">${newValue}</span></span>`;
           } else if (log.new_value) {
-            return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>，设为 <span class="new-val">${newValue}</span></span>`;
+            return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span> \u7684<span class="field">${label}</span>\uff0c\u8bbe\u4e3a <span class="new-val">${newValue}</span></span>`;
           }
-          return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span></span>`;
+          return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span> \u7684<span class="field">${label}</span></span>`;
 
         case "lock":
         case "unlock":
-          return `<span class="text">${meta.verb} <span class="name">「${name}」</span> 的<span class="field">${label}</span>字段</span>`;
+          return `<span class="text">${actor}${meta.verb} <span class="name">\u300c${name}\u300d</span> \u7684<span class="field">${label}</span>\u5b57\u6bb5</span>`;
 
         default:
-          return `<span class="text"><span class="name">「${name}」</span></span>`;
+          return `<span class="text">${actor}<span class="name">\u300c${name}\u300d</span></span>`;
       }
     }
 
@@ -906,6 +919,7 @@
       return {
         id: row.id,
         action: row.action || "edit",
+        actor: row.actor || "webui",
         target_name: row.target_name || row.target_qq || "未知用户",
         target_qq: row.target_qq || "",
         field: row.field || "",
@@ -916,26 +930,41 @@
       };
     }
 
-    async function loadLogs() {
-      state.visibleCount = PAGE_SIZE;
-      state.selectedDate = null;
+    async function fetchLogs() {
+      if (!bridge || !bridge.apiPost) throw new Error("WebUI bridge unavailable");
+      const resp = await bridge.apiPost("relationship/logs", {
+        scope_type: currentScope.scope_type,
+        scope_id: currentScope.scope_id,
+        limit: currentScope.scope_type === "all" ? 300 : 180,
+      });
+      if (!resp || !resp.success) throw new Error(resp?.error || "logs load failed");
+      return (resp.rows || []).map(normalizeLog);
+    }
+
+    async function loadLogs(resetView = true) {
+      if (resetView) {
+        state.visibleCount = PAGE_SIZE;
+        state.selectedDate = null;
+      }
       refreshScopeText();
       try {
-        if (!bridge || !bridge.apiPost) throw new Error("WebUI bridge 不可用");
-        const resp = await bridge.apiPost("relationship/logs", {
-          scope_type: currentScope.scope_type,
-          scope_id: currentScope.scope_id,
-          limit: currentScope.scope_type === "all" ? 300 : 180,
-        });
-        if (!resp || !resp.success) throw new Error(resp?.error || "读取日志失败");
-        state.allLogs = (resp.rows || []).map(normalizeLog);
+        state.allLogs = await fetchLogs();
       } catch (e) {
-        // 独立打开 HTML 或旧后端未重载时，使用演示数据，避免页面空白。
-        console.warn("关系本日志接口不可用，使用演示数据：", e);
-        state.allLogs = MOCK_LOGS;
+        console.warn("relationship logs unavailable, using demo data:", e);
+        state.allLogs = MOCK_LOGS.map(normalizeLog);
       }
       buildDateStrip();
       renderDiary();
+    }
+
+    async function refreshLogsSilently() {
+      try {
+        state.allLogs = await fetchLogs();
+        buildDateStrip();
+        renderDiary();
+      } catch (e) {
+        console.debug("relationship logs refresh skipped:", e);
+      }
     }
 
     function applyScopeOptions(config) {
@@ -979,6 +1008,9 @@
       }
     } catch (_) { applyScopeOptions({}); }
     loadLogs();
+    setInterval(() => {
+      if (document.visibilityState === "visible") refreshLogsSilently();
+    }, 20000);
   </script>
 
 </body>
