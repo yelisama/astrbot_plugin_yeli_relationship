@@ -33,7 +33,7 @@ except ImportError as exc:
     raise RuntimeError("astrbot_plugin_yeli_relationship requires aiosqlite>=0.19") from exc
 
 PLUGIN_NAME = "astrbot_plugin_yeli_relationship"
-PLUGIN_VERSION = "v1.2.3"
+PLUGIN_VERSION = "v1.2.4"
 API_PREFIX = f"/{PLUGIN_NAME}"
 REL_MARKER = "【关系本维护说明】"
 NOTE_AUTO_MAX_LEN = 20
@@ -71,7 +71,6 @@ DEFAULT_CONFIG = {
     "history_auto_scan_auto_profile": False,
     "history_auto_scan_group_delay_seconds": 5,
     "llm_provider_id": "",
-    "llm_model": "",
     "llm_retry_times": 2,
     "webui_theme": "glass",
     "webui_dark_mode": "light",
@@ -645,24 +644,16 @@ class RelationshipPlugin(Star):
         return bool(self.config.get("enabled", True)) and self._mode() != "off"
 
     def get_llm_provider(self, *, umo: str | None = None) -> Provider:
-        """获取关系本专用 LLM 提供商；未配置或不存在时回退当前会话 provider。"""
+        """获取关系本专用模型；不跟随当前会话的默认模型。"""
         provider_id = str(self.config.get("llm_provider_id", "") or "").strip()
-        provider = None
-        if provider_id and hasattr(self.context, "get_provider_by_id"):
-            provider = self.context.get_provider_by_id(provider_id)
-        if provider is None and hasattr(self.context, "get_using_provider"):
-            try:
-                provider = self.context.get_using_provider(umo=umo)
-            except TypeError:
-                provider = self.context.get_using_provider()
+        if not provider_id:
+            raise RuntimeError("请先在插件配置中选择关系分析模型")
+        if not hasattr(self.context, "get_provider_by_id"):
+            raise RuntimeError("当前 AstrBot 版本不支持按 ID 读取关系分析模型")
+        provider = self.context.get_provider_by_id(provider_id)
         if not isinstance(provider, Provider):
-            raise RuntimeError("未配置用于关系本分析任务的 LLM 提供商")
+            raise RuntimeError("所选关系分析模型不存在或未启用，请重新选择")
         return provider
-
-    def get_llm_model(self) -> str | None:
-        """获取关系本专用模型名；空字符串表示使用 provider 默认模型。"""
-        model = str(self.config.get("llm_model", "") or "").strip()
-        return model or None
 
     async def llm_text_chat(self, *, system_prompt: str, prompt: str, umo: str | None = None):
         """统一的关系本 LLM 调用入口，后续自动分析都走这里。"""
@@ -671,10 +662,7 @@ class RelationshipPlugin(Star):
         last_exc: Exception | None = None
         for _ in range(retry_times):
             try:
-                kwargs = {"system_prompt": system_prompt, "prompt": prompt}
-                if self.get_llm_model():
-                    kwargs["model"] = self.get_llm_model()
-                return await provider.text_chat(**kwargs)
+                return await provider.text_chat(system_prompt=system_prompt, prompt=prompt)
             except Exception as exc:
                 last_exc = exc
                 await asyncio.sleep(0.2)
@@ -919,9 +907,9 @@ class RelationshipPlugin(Star):
         conditions = ["(scope_type = ? AND scope_id = ?)"]
         params: list[Any] = []
         if sharing_mode in {"global_fallback", "shared"}:
-            conditions.append("(p.scope_type = 'global' AND p.scope_id = 'global')")
+            conditions.append("(scope_type = 'global' AND scope_id = 'global')")
         if sharing_mode == "shared" and target_ids_required:
-            conditions.append("(p.scope_type IN ('group', 'private'))")
+            conditions.append("(scope_type IN ('group', 'private'))")
         return " OR ".join(conditions), params
 
     async def _alias_match_detail(self, scope_type: str, scope_id: str, text: str) -> dict[str, Any]:
@@ -932,13 +920,13 @@ class RelationshipPlugin(Star):
             return detail
         min_len = self._alias_min_match_len()
         token_hits: dict[str, set[str]] = {}
-        scope_conditions = ["(p.scope_type = ? AND p.scope_id = ?)"]
+        scope_conditions = ["(scope_type = ? AND scope_id = ?)"]
         params: list[Any] = [scope_type, scope_id]
         sharing_mode = self._scope_sharing_mode()
         if sharing_mode in {"global_fallback", "shared"}:
-            scope_conditions.append("(p.scope_type = 'global' AND p.scope_id = 'global')")
+            scope_conditions.append("(scope_type = 'global' AND scope_id = 'global')")
         if sharing_mode == "shared":
-            scope_conditions.append("(p.scope_type IN ('group', 'private'))")
+            scope_conditions.append("(scope_type IN ('group', 'private'))")
         scope_where = " OR ".join(scope_conditions)
         async with await self._get_db() as conn:
             async with conn.execute(
@@ -1525,7 +1513,7 @@ class RelationshipPlugin(Star):
                     FROM relationship_profiles
                     WHERE qq_id = ? AND (
                         (scope_type = ? AND scope_id = ?)
-                        OR (p.scope_type = 'global' AND p.scope_id = 'global')
+                        OR (scope_type = 'global' AND scope_id = 'global')
                     )
                     ORDER BY CASE WHEN scope_type = ? AND scope_id = ? THEN 0 ELSE 1 END
                     LIMIT 1

@@ -342,6 +342,8 @@
     .editable-wrap:hover .edit-hint { opacity: 0.5; }
 
     .edit-input { width: 100%; min-width: 80px; }
+    .importance-wrap .editable-wrap { flex: 0 0 42px; width: 42px; min-width: 42px; }
+    .importance-wrap .edit-input { width: 42px; min-width: 42px; padding-left: 5px; padding-right: 5px; text-align: center; }
 
     /* 锁按钮 */
     .lock-btn {
@@ -368,7 +370,7 @@
     .pill.ok { background: rgba(74,158,107,0.12); color: var(--ok); }
     .pill.warn { background: rgba(212,168,83,0.12); color: var(--warn); }
     .pill.neutral { background: rgba(139,160,175,0.1); color: var(--text-soft); }
-    .importance-wrap { flex-wrap: wrap; row-gap: 4px; }
+    .importance-wrap { flex-wrap: wrap; row-gap: 4px; align-items: center; }
     td.col-note .editable-wrap,
     td.col-note .editable-wrap .value,
     td.col-user .editable-wrap,
@@ -660,7 +662,7 @@
     <!-- ====== 左侧栏 ====== -->
     <aside class="sidebar">
       <div class="brand">
-        <h1>&#22812;&#29827;&#20851;&#31995;&#26412; <span class="version-badge" id="versionBadge">v1.2.2</span></h1>
+        <h1>&#22812;&#29827;&#20851;&#31995;&#26412; <span class="version-badge" id="versionBadge">v1.2.4</span></h1>
         <p class="brand-subtitle">Short cards / scoped profiles / diagnostics</p>
         <a class="back-btn" id="diaryLinkTop" href="diary.html">📖 查看变动手记</a>
       </div>
@@ -861,12 +863,6 @@
 
 
   <script type="module">
-    const entryParams = new URLSearchParams(location.search || "");
-    if (entryParams.get("manage") !== "1") {
-      const target = `diary.html?${entryParams.toString()}`;
-      window.location.replace(target);
-    }
-
     const bridge = window.AstrBotPluginPage;
     await bridge.ready();
 
@@ -964,7 +960,7 @@
     ======================================== */
     const state = {
       config: {},
-      pluginVersion: "v1.2.2",
+      pluginVersion: "v1.2.4",
       scope: { scope_type: "global", scope_id: "global", label: "全局资料" },
       rows: [],
       activeRows: [],
@@ -1080,7 +1076,7 @@
     function renderSimpleConfig() {
       if (!$('modeSelect')) return;
       const cfg = state.config || {};
-      $('versionBadge').textContent = state.pluginVersion || 'v1.2.2';
+      $('versionBadge').textContent = state.pluginVersion || 'v1.2.4';
       $('modeSelect').value = cfg.mode || 'auto';
       $('sharingModeSelect').value = cfg.scope_sharing_mode || 'global_fallback';
       $('budgetModeSelect').value = cfg.inject_budget_mode || 'balanced';
@@ -1400,7 +1396,7 @@
     ======================================== */
     function editableValue(row, field, fallback = "") {
       const wrap = document.createElement("span");
-      wrap.className = "editable-wrap";
+      wrap.className = `editable-wrap${field === "importance" ? " importance-editor" : ""}`;
 
       const span = document.createElement("span");
       const val = String(row[field] ?? fallback ?? "").trim();
@@ -1421,6 +1417,10 @@
     function startEdit(span, row, field, oldVal) {
       const input = document.createElement("input");
       input.className = "edit-input";
+      if (field === "importance") {
+        input.type = "number"; input.min = "0"; input.max = "100"; input.step = "1"; input.inputMode = "numeric";
+        input.classList.add("importance-input");
+      }
       input.value = oldVal;
       span.replaceWith(input);
       input.focus(); input.select();
@@ -1476,8 +1476,9 @@
             nameRow.appendChild(lockButton(row, "nickname"));
             const nameSpan = document.createElement("span");
             nameSpan.className = "main-name";
-            nameSpan.textContent = row.nickname || "未命名";
-            nameSpan.title = row.nickname || "未命名";
+            const displayName = row.nickname || row.title_manual || row.title_auto || "未命名";
+             nameSpan.textContent = displayName;
+            nameSpan.title = displayName;
             nameRow.appendChild(nameSpan);
             userCell.appendChild(nameRow);
             const qqDiv = document.createElement("div");
