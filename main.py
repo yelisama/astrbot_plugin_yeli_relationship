@@ -33,7 +33,7 @@ except ImportError as exc:
     raise RuntimeError("astrbot_plugin_yeli_relationship requires aiosqlite>=0.19") from exc
 
 PLUGIN_NAME = "astrbot_plugin_yeli_relationship"
-PLUGIN_VERSION = "v1.2.0"
+PLUGIN_VERSION = "v1.2.1"
 API_PREFIX = f"/{PLUGIN_NAME}"
 REL_MARKER = "【关系本维护说明】"
 NOTE_AUTO_MAX_LEN = 20
@@ -1880,8 +1880,11 @@ class RelationshipPlugin(Star):
             if not allowed_value:
                 logger.debug("[关系本] 主动维护字段跳过 uid=%s field=%s reason=%s", uid, field, skip_reason)
                 continue
+            old_value = str(current.get(field) or "")
             if field == "aliases":
-                value = self._merge_alias_values(str(current.get("aliases") or ""), value)
+                value = self._merge_alias_values(old_value, value)
+            if old_value == value:
+                continue
             ok, message = await self.update_field(
                 uid,
                 field,
@@ -1892,8 +1895,21 @@ class RelationshipPlugin(Star):
             )
             if ok:
                 changed.append(field)
+                target_name = str(current.get("nickname") or current.get("title_manual") or current.get("title_auto") or nickname or "")
+                await self._record_op_log(
+                    "edit",
+                    uid,
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    target_name=target_name,
+                    field=field,
+                    old_value=old_value,
+                    new_value=value,
+                    actor="bot",
+                )
+                current[field] = value
             else:
-                logger.debug("[关系本] 主动维护写入跳过 uid=%s field=%s reason=%s", uid, field, message)
+                logger.debug("[relationship] auto maintain skipped uid=%s field=%s reason=%s", uid, field, message)
         if changed:
             logger.info("[关系本] 主动维护已更新 uid=%s scope=%s:%s fields=%s", uid, scope_type, scope_id, ",".join(changed))
 
@@ -2139,6 +2155,8 @@ class RelationshipPlugin(Star):
         sender_id = self._normalize_id(scope.get("sender_id") or "")
         reasons: list[str] = []
         alias_ids: set[str] = set()
+        alias_conflicts: list[dict[str, Any]] = []
+        alias_ignored_short: list[str] = []
         rows: list[dict[str, Any]] = []
         allowed_read = self._scope_allowed(scope_type, scope_id, sender_id, for_write=False)
         if not allowed_read:
